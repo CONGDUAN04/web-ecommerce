@@ -1,4 +1,4 @@
-import prisma from '../config/client.js'; // <-- import mặc định
+import prisma from '../config/client.js';
 export const postCreateUserServices = async (name, email, address) => {
     const user = await prisma.user.create({
         data: {

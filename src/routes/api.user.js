@@ -1,10 +1,8 @@
-import express from 'express';
-import { postCreateUser } from '../controllers/user.controller.js';
-const router = express.Router();
+// src/routes/product.routes.js
+import { Router } from "express";
+import { postCreateUser } from "../controllers/user.controller.js";
+const router = Router();
 
-const apiRoutes = (app) => {
-    router.post("/users", postCreateUser);
-    app.use("/api", router);
-}
+router.post("/users", postCreateUser);
 
-export default apiRoutes;
+export default router;
