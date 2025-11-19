@@ -2,13 +2,16 @@ import {
     getAllProductsServices,
     postCreateProductServices,
     putUpdateProductsServices,
-    deleteProductServices
-} from "../services/product.services.js";
+    deleteProductServices,
+    getProductByIdServices
+} from "../../services/admin/product.services.js";
 
 export const postCreateProduct = async (req, res) => {
     try {
         const data = req.body;
-        const product = await postCreateProductServices(data);
+        const file = req.file;
+        const image = file?.filename ?? undefined;
+        const product = await postCreateProductServices(data, image);
 
         return res.status(200).json({
             ErrorCode: 0,
@@ -44,9 +47,13 @@ export const getAllProducts = async (req, res) => {
 
 export const putUpdateProduct = async (req, res) => {
     try {
-        const data = req.body;
-        const product = await putUpdateProductsServices(data);
-
+        const data = {
+            id: req.params.id, // Đưa id vào data
+            ...req.body
+        };
+        const file = req.file;
+        const image = file?.filename ?? undefined;
+        const product = await putUpdateProductsServices(data, image);
         return res.status(200).json({
             ErrorCode: 0,
             message: "Cập nhật sản phẩm thành công!",
@@ -63,12 +70,30 @@ export const putUpdateProduct = async (req, res) => {
 
 export const deleteProduct = async (req, res) => {
     try {
-        const id = req.body.productId;
+        const id = req.params.id
         await deleteProductServices(id);
-
         return res.status(200).json({
             ErrorCode: 0,
             message: "Xoá sản phẩm thành công!"
+        });
+
+    } catch (error) {
+        return res.status(400).json({
+            ErrorCode: 1,
+            message: error.message
+        });
+    }
+};
+
+export const getProductById = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const product = await getProductByIdServices(id);
+
+        return res.status(200).json({
+            ErrorCode: 0,
+            message: "Lấy sản phẩm thành công!",
+            data: product
         });
 
     } catch (error) {

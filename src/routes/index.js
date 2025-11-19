@@ -1,7 +1,6 @@
 import express from "express";
 import userRoutes from "./api.user.js";
 import productRoutes from "./api.product.js";
-
 const router = express.Router();
 
 
