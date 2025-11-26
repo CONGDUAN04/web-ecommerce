@@ -39,25 +39,28 @@ export const postCreateUserServices = async (data, avatar) => {
         throw new Error(error.message || "Tạo người dùng thất bại.");
     }
 };
-
 export const getAllUsersService = async () => {
-    return await prisma.user.findMany();
+    return await prisma.user.findMany({
+        include: {
+            role: true,
+        },
+    });
 };
-export const putUpdateUserServices = async (data, avatar) => {
+export const putUpdateUserServices = async (id, data, avatar) => {
     try {
-        const { id, fullName, address, phone, avatar } = data;
-        if (avatar !== undefined) {
-            data.avatar = avatar;
-        }
         const product = await prisma.user.update({
             where: { id: +id },
             data: {
-                fullName, address, phone
-            }
+                fullName: data.fullName,
+                address: data.address,
+                phone: data.phone,
+                ...(avatar && { avatar }),
+            },
 
         });
         return product;
     } catch (error) {
+        console.log(error)
         throw new Error("Cập nhập người dùng thất bại");
     }
 };

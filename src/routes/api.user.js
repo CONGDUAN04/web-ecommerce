@@ -1,13 +1,12 @@
 // src/routes/product.routes.js
 import { Router } from "express";
 import { postCreateUser, getAllUsers, putUpdateUser, deleteUserById, getUserById } from "../controllers/admin/user.controller.js";
-import fileUploadMiddleware from "../middleware/multer.js";
-import { cleanupFile } from "../middleware/cleanupFile.js";
+import { uploadSingleFile } from "../middleware/multer.js";
 const router = Router();
 
-router.post("/", fileUploadMiddleware("avatar", "images/user"), cleanupFile, postCreateUser);
+router.post("/", uploadSingleFile("avatar", "images/avatar"), postCreateUser);
 router.get("/", getAllUsers)
 router.get("/:id", getUserById)
-router.put("/:id", fileUploadMiddleware("avatar", "images/user"), cleanupFile, putUpdateUser);
+router.put("/:id", uploadSingleFile("avatar", "images/avatar"), putUpdateUser);
 router.delete("/:id", deleteUserById)
 export default router;

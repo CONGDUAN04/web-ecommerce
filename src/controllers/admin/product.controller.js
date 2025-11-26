@@ -1,105 +1,114 @@
 import {
-    getAllProductsServices,
-    postCreateProductServices,
     putUpdateProductsServices,
-    deleteProductServices,
-    getProductByIdServices
+    getProductByIdServices,
+    createProductService,
+    getAllProductsService,
+
 } from "../../services/admin/product.services.js";
-
-export const postCreateProduct = async (req, res) => {
+export const postCreateProductController = async (req, res) => {
     try {
-        const data = req.body;
-        const file = req.file;
-        const image = file?.filename ?? undefined;
-        const product = await postCreateProductServices(data, image);
+        const product = await createProductService(req.body, req.files);
 
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Tạo sản phẩm thành công!",
-            data: product
+        return res.status(201).json({
+            success: true,
+            message: "Tạo sản phẩm thành công",
+            data: product,
         });
-
-    } catch (error) {
-        return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({
+            success: false,
+            message: "Tạo sản phẩm thất bại",
+            error: err.message,
         });
     }
 };
 
-export const getAllProducts = async (req, res) => {
+export const getAllProductsController = async (req, res) => {
     try {
-        const products = await getAllProductsServices();
+        const products = await getAllProductsService();
 
         return res.status(200).json({
-            ErrorCode: 0,
+            success: true,
             message: "Lấy danh sách sản phẩm thành công!",
             data: products
         });
 
     } catch (error) {
         return res.status(500).json({
-            ErrorCode: 1,
-            message: "Lấy danh sách sản phẩm thất bại."
+            success: false,
+            message: "Lấy danh sách sản phẩm thất bại.",
+            error: error.message
         });
     }
 };
-
-export const putUpdateProduct = async (req, res) => {
-    try {
-        const data = {
-            id: req.params.id, // Đưa id vào data
-            ...req.body
-        };
-        const file = req.file;
-        const image = file?.filename ?? undefined;
-        const product = await putUpdateProductsServices(data, image);
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Cập nhật sản phẩm thành công!",
-            data: product
-        });
-
-    } catch (error) {
-        return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
-
-export const deleteProduct = async (req, res) => {
-    try {
-        const id = req.params.id
-        await deleteProductServices(id);
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Xoá sản phẩm thành công!"
-        });
-
-    } catch (error) {
-        return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
-
-export const getProductById = async (req, res) => {
+export const getProductByIdController = async (req, res) => {
     try {
         const id = req.params.id;
         const product = await getProductByIdServices(id);
 
         return res.status(200).json({
-            ErrorCode: 0,
-            message: "Lấy sản phẩm thành công!",
+            success: true,
+            message: "Lấy sản phẩm thành công",
             data: product
         });
 
     } catch (error) {
         return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
+            success: false,
+            message: error.message,
+            error: null
         });
     }
 };
+export const putUpdateProduct = async (req, res) => {
+    try {
+        const data = {
+            id: req.params.id,
+            ...req.body
+        };
+        const file = req.file;
+        const image = file?.filename;
+        const product = await putUpdateProductsServices(data, image);
+        return res.status(200).json({
+            success: true,
+            message: "Cập nhật sản phẩm thành công!",
+            data: product
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message,
+            error: null
+        });
+    }
+};
+
+export const deleteProduct = async (req, res) => {
+    const id = +req.params.id;
+    try {
+        await prisma.$transaction(async (tx) => {
+            await tx.cartDetail.deleteMany({ where: { productId: id } });
+            await tx.cartDetailVariant.deleteMany({
+                where: { variant: { productId: id } }
+            });
+            await tx.wishlist.deleteMany({ where: { productId: id } });
+            await tx.review.deleteMany({ where: { productId: id } });
+            await tx.productVariant.deleteMany({ where: { productId: id } });
+            await tx.product.delete({ where: { id } });
+        });
+        return res.status(200).json({
+            success: true,
+            message: "Xoá sản phẩm và các dữ liệu liên quan thành công",
+            data: null
+        });
+
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message,
+            error: null
+        });
+    }
+};
+

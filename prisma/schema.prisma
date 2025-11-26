@@ -1,18 +1,13 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
+  // url      = env("DATABASE_URL")
 }
 
+// ==================== USERS & ROLES ====================
 model Session {
   id        String   @id
   sid       String   @unique
@@ -53,43 +48,101 @@ model User {
   @@map("users")
 }
 
+// ==================== CATEGORY ====================
 model Category {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique @db.VarChar(255)
-  description String?  @db.Text
-  image       String?  @db.VarChar(255)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  products Product[]
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(255)
+  description String?   @db.Text
+  image       String?   @db.VarChar(255)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 
   @@map("categories")
 }
 
-model Product {
-  id         Int     @id @default(autoincrement())
-  name       String  @db.VarChar(255)
-  price      Int
-  image      String? @db.VarChar(255)
-  detailDesc String  @db.MediumText
-  shortDesc  String  @db.VarChar(255)
-  quantity   Int
-  sold       Int     @default(0)
-  factory    String  @db.VarChar(255)
-  target     String  @db.VarChar(255)
+// ==================== BRAND ====================
+model Brand {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(255)
+  imageBrand String?  @db.VarChar(255)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
+  products Product[]
+
+  @@map("brands")
+}
+
+// ==================== TARGET ====================
+model Target {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.Text
+  products    Product[]
+
+  @@map("targets")
+}
+
+// ==================== PRODUCT ====================
+model Product {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(255)
+  desc       String    @db.MediumText
+  thumbnail  String?   @db.VarChar(255)
+  quantity   Int
+  sold       Int       @default(0)
+  target     Target?   @relation(fields: [targetId], references: [id])
+  targetId   Int?
+  brand      Brand?    @relation(fields: [brandId], references: [id])
+  brandId    Int?
   category   Category? @relation(fields: [categoryId], references: [id])
   categoryId Int?
 
+  colors       ColorVariant[]
   cartDetails  CartDetail[]
   orderDetails OrderDetail[]
   reviews      Review[]
   wishlists    Wishlist[]
 
   @@index([categoryId])
+  @@index([brandId])
+  @@index([targetId])
   @@map("products")
 }
 
+// ==================== COLOR & STORAGE ====================
+model ColorVariant {
+  id        Int     @id @default(autoincrement())
+  color     String  @db.VarChar(100)
+  image     String? @db.VarChar(255)
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  storages StorageVariant[]
+
+  @@index([productId])
+  @@map("color_variants")
+}
+
+model StorageVariant {
+  id       Int    @id @default(autoincrement())
+  name     String @db.VarChar(100) // 128GB, 512GB, ...
+  price    Int
+  quantity Int
+  sold     Int    @default(0)
+
+  color   ColorVariant @relation(fields: [colorId], references: [id])
+  colorId Int
+
+  orderDetails OrderDetailVariant[]
+  cartDetails  CartDetailVariant[]
+
+  @@index([colorId])
+  @@map("storage_variants")
+}
+
+// ==================== CART ====================
 model Cart {
   id  Int @id @default(autoincrement())
   sum Int
@@ -97,7 +150,8 @@ model Cart {
   user   User @relation(fields: [userId], references: [id])
   userId Int  @unique
 
-  cartDetails CartDetail[]
+  cartDetails        CartDetail[]
+  cartDetailVariants CartDetailVariant[]
 
   @@map("carts")
 }
@@ -115,15 +169,30 @@ model CartDetail {
   @@map("cart_detail")
 }
 
+model CartDetailVariant {
+  id       Int @id @default(autoincrement())
+  price    Int
+  quantity Int
+
+  cart   Cart @relation(fields: [cartId], references: [id])
+  cartId Int
+
+  storage   StorageVariant @relation(fields: [storageId], references: [id])
+  storageId Int
+
+  @@map("cart_detail_variant")
+}
+
+// ==================== ORDER ====================
 model Order {
   id              Int     @id @default(autoincrement())
   totalPrice      Int
   receiverAddress String  @db.VarChar(255)
   receiverName    String  @db.VarChar(255)
   receiverPhone   String  @db.VarChar(255)
-  status          String  @default("PENDING") //PENDING,CANCELLED,COMPLETE
-  paymentMethod   String //COD, BANKING
-  paymentStatus   String //PAYMENT_UNPAID,PAYMENT_SUCCESS,PAYMENT_FAILED
+  status          String  @default("PENDING")
+  paymentMethod   String
+  paymentStatus   String
   paymentRef      String?
 
   user   User @relation(fields: [userId], references: [id])
@@ -132,7 +201,8 @@ model Order {
   voucher   Voucher? @relation(fields: [voucherId], references: [id])
   voucherId Int?
 
-  orderDetails OrderDetail[]
+  orderDetails        OrderDetail[]
+  orderDetailVariants OrderDetailVariant[]
 
   @@index([userId])
   @@map("orders")
@@ -143,9 +213,8 @@ model OrderDetail {
   price    Int
   quantity Int
 
-  order   Order @relation(fields: [orderId], references: [id])
-  orderId Int
-
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   Int
   product   Product @relation(fields: [productId], references: [id])
   productId Int
 
@@ -154,6 +223,23 @@ model OrderDetail {
   @@map("order_detail")
 }
 
+model OrderDetailVariant {
+  id       Int @id @default(autoincrement())
+  price    Int
+  quantity Int
+
+  order   Order @relation(fields: [orderId], references: [id])
+  orderId Int
+
+  storage   StorageVariant @relation(fields: [storageId], references: [id])
+  storageId Int
+
+  @@index([orderId])
+  @@index([storageId])
+  @@map("order_detail_variant")
+}
+
+// ==================== REVIEW ====================
 model Review {
   id        Int      @id @default(autoincrement())
   rating    Int
@@ -171,6 +257,7 @@ model Review {
   @@map("reviews")
 }
 
+// ==================== VOUCHER ====================
 model Voucher {
   id         Int      @id @default(autoincrement())
   code       String   @unique @db.VarChar(50)
@@ -187,6 +274,7 @@ model Voucher {
   @@map("vouchers")
 }
 
+// ==================== WISHLIST ====================
 model Wishlist {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())

@@ -38,13 +38,11 @@ export const getAllUsers = async (req, res) => {
 
 export const putUpdateUser = async (req, res) => {
     try {
-        const data = {
-            id: req.params.id,
-            ...req.body
-        };
+        const { id } = req.params;
+        const data = req.body;
         const file = req.file;
         const avatar = file?.filename ?? undefined;
-        const product = await putUpdateUserServices(data, avatar);
+        const product = await putUpdateUserServices(id, data, avatar);
         return res.status(200).json({
             ErrorCode: 0,
             message: "Cập nhật người dùng thành công!",

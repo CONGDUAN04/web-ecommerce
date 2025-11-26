@@ -6,8 +6,9 @@ const getConnection = async () => {
         host: "localhost",
         user: "root",
         password: "Duan0339514495@",
-        database: "db_ecommerce",
+        database: "backend",
     });
+    return connection
 };
 
 export default getConnection;
