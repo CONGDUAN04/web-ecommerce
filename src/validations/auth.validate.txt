@@ -1,0 +1,67 @@
+import { z } from "zod";
+import { isEmailExist } from "../services/auth.services.js";
+
+const passwordSchema = z
+    .string()
+    .min(3, { message: "Password tối thiểu 3 kí tự" })
+    .max(20, { message: "Password tối đa 20 kí tự" })
+    .refine((p) => /[A-Z]/.test(p), {
+        message: "Password phải có ít nhất 1 chữ hoa",
+    })
+    .refine((p) => /[a-z]/.test(p), {
+        message: "Password phải có ít nhất 1 chữ thường",
+    })
+    .refine((p) => /[0-9]/.test(p), {
+        message: "Password phải có ít nhất 1 chữ số",
+    })
+    .refine((p) => /[!@#$%^&*]/.test(p), {
+        message: "Password phải có ít nhất 1 ký tự đặc biệt",
+    });
+
+const emailFormatSchema = z
+    .string()
+    .min(1, "Email không được để trống")
+    .email("Email không đúng định dạng");
+
+export const UserSchema = z
+    .object({
+        fullName: z.string().max(255).optional(),
+        username: emailFormatSchema,
+        password: passwordSchema,
+        confirmPassword: z.string(),
+
+        address: z.string().max(255).optional(),
+        phone: z
+            .string()
+            .regex(/^(0|\+84)\d{9}$/i, "Số điện thoại không hợp lệ")
+            .optional(),
+
+        accountType: z.enum(["CUSTOMER", "ADMIN", "STAFF"]).optional(),
+        avatar: z.string().url("Avatar phải là URL").optional(),
+        roleId: z.number().optional(),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+        message: "Password confirm không chính xác",
+        path: ["confirmPassword"],
+    })
+    .refine(
+        async (data) => {
+            const exists = await isEmailExist(data.username);
+            return !exists;
+        },
+        {
+            message: "Email đã tồn tại",
+            path: ["username"], // Không phải ["email"]
+        }
+    );
+
+export const ChangePasswordSchema = z
+    .object({
+        oldPassword: z.string(),
+        newPassword: passwordSchema,
+        confirmNewPassword: z.string(),
+    })
+    .refine((data) => data.newPassword === data.confirmNewPassword, {
+        message: "Confirm password không khớp",
+        path: ["confirmNewPassword"],
+    });

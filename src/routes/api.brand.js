@@ -1,18 +1,41 @@
-import express from "express";
+import { Router } from "express";
 import {
-    createBrand,
-    deleteBrand,
-    getBrandById,
     getBrands,
+    getBrandById,
+    createBrand,
     updateBrand,
+    deleteBrand
 } from "../controllers/admin/brand.controller.js";
 import { uploadSingleFile } from "../middleware/multer.js";
+import { cleanupFile } from "../middleware/cleanupFile.js";
+import { validate } from "../middleware/validate.middleware.js";
+import { paginationSchema } from "../validations/common/query.js";
+import { idParamSchema } from "../validations/common/params.js";
+import { createBrandSchema } from "../validations/brand/create.brand.js";
+import { updateBrandSchema } from "../validations/brand/update.brand.js";
 
-const router = express.Router();
-router.get("/", getBrands);
-router.get("/:id", getBrandById);
-router.post("/", uploadSingleFile('imageBrand', 'images/brand'), createBrand);
-router.put("/:id", uploadSingleFile('imageBrand', 'images/brand'), updateBrand);
-router.delete("/:id", deleteBrand);
+const router = Router();
+
+router.get("/", validate(paginationSchema), getBrands);
+
+router.get("/:id", validate(idParamSchema), getBrandById);
+
+router.post(
+    "/",
+    uploadSingleFile("image", "images/brand"),
+    validate(createBrandSchema),
+    cleanupFile,
+    createBrand
+);
+
+router.put(
+    "/:id",
+    uploadSingleFile("image", "images/brand"),
+    validate(updateBrandSchema),
+    cleanupFile,
+    updateBrand
+);
+
+router.delete("/:id", validate(idParamSchema), deleteBrand);
 
 export default router;

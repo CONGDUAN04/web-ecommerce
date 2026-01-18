@@ -35,7 +35,7 @@ export const uploadMultipleFields = (dir = "images") => {
         limits: { fileSize: 3 * 1024 * 1024 },
         fileFilter,
     }).fields([
-        { name: "thumbnail", maxCount: 1 },      // sửa tên field
+        { name: "thumbnail", maxCount: 1 },
         { name: "colorImages", maxCount: 20 },
     ]);
 };

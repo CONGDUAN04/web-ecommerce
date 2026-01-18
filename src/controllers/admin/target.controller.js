@@ -1,122 +1,95 @@
-// controllers/admin/target.controller.js
 import {
     createTargetServices,
+    getTargetsServices,
     getTargetByIdServices,
-    getTargetServices,
     updateTargetServices,
-    deleteTargetServices
+    deleteTargetServices,
 } from "../../services/admin/target.services.js";
 
-// Lấy danh sách tất cả mục tiêu
-export const getTarget = async (req, res) => {
+export const getTargets = async (req, res) => {
     try {
-        const targets = await getTargetServices();
+        const result = await getTargetsServices(req.validated.query);
+
         return res.status(200).json({
             ErrorCode: 0,
             message: "Lấy danh sách mục tiêu thành công",
-            data: targets
+            data: result.items,
+            pagination: result.pagination,
         });
     } catch (error) {
         return res.status(500).json({
             ErrorCode: 1,
-            message: error.message
+            message: error.message,
         });
     }
 };
 
-// Lấy mục tiêu theo ID
 export const getTargetById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const target = await getTargetByIdServices(id);
-
-        if (!target) {
-            return res.status(404).json({
-                ErrorCode: 1,
-                message: "Mục tiêu không tồn tại"
-            });
-        }
+        const target = await getTargetByIdServices(req.validated.params.id);
 
         return res.status(200).json({
             ErrorCode: 0,
             message: "Lấy mục tiêu thành công",
-            data: target
+            data: target,
         });
     } catch (error) {
-        return res.status(500).json({
+        return res.status(404).json({
             ErrorCode: 1,
-            message: error.message
+            message: error.message,
         });
     }
 };
 
-// Tạo mục tiêu mới
 export const createTarget = async (req, res) => {
     try {
-        const data = req.body;
-        const target = await createTargetServices(data);
+        const target = await createTargetServices(req.validated.body);
 
         return res.status(201).json({
             ErrorCode: 0,
             message: "Tạo mục tiêu thành công",
-            data: target
+            data: target,
         });
     } catch (error) {
         return res.status(400).json({
             ErrorCode: 1,
-            message: error.message
+            message: error.message,
         });
     }
 };
 
-// Cập nhật mục tiêu theo ID
 export const updateTarget = async (req, res) => {
     try {
-        const { id } = req.params;
-        const data = req.body;
-
-        const target = await updateTargetServices(id, data);
-
-        if (!target) {
-            return res.status(404).json({
-                ErrorCode: 1,
-                message: "Mục tiêu không tồn tại"
-            });
-        }
+        const target = await updateTargetServices(
+            req.validated.params.id,
+            req.validated.body
+        );
 
         return res.status(200).json({
             ErrorCode: 0,
             message: "Cập nhật mục tiêu thành công",
-            data: target
+            data: target,
         });
     } catch (error) {
         return res.status(400).json({
             ErrorCode: 1,
-            message: error.message
+            message: error.message,
         });
     }
 };
 
-// Xóa mục tiêu theo ID
 export const deleteTarget = async (req, res) => {
     try {
-        const { id } = req.params;
-        await deleteTargetServices(id);
+        await deleteTargetServices(req.validated.params.id);
 
         return res.status(200).json({
             ErrorCode: 0,
-            message: "Xóa mục tiêu thành công"
+            message: "Xóa mục tiêu thành công",
         });
     } catch (error) {
-        if (error.message === "Mục tiêu không tồn tại") {
-            return res.status(404).json({
-                ErrorCode: 1,
-                message: error.message
-            });
-        }
         return res.status(400).json({
             ErrorCode: 1,
-            message: error.message
+            message: error.message,
         });
     }
 };

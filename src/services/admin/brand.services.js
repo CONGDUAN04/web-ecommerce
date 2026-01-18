@@ -1,92 +1,92 @@
 import prisma from "../../config/client.js";
 
-export const createBrandServices = async (data) => {
-    const existBrand = await prisma.brand.findFirst({
-        where: { name: data.name }
-    });
+export const getBrandsServices = async ({ page = 1, limit = 10 }) => {
+    page = Math.max(1, Number(page));
+    limit = Math.min(Math.max(1, Number(limit)), 100);
+    const skip = (page - 1) * limit;
 
-    if (existBrand) {
-        throw new Error("Tên thương hiệu đã tồn tại");
-    }
+    const [items, total] = await Promise.all([
+        prisma.brand.findMany({
+            skip,
+            take: limit,
+            orderBy: { id: "desc" },
+        }),
+        prisma.brand.count(),
+    ]);
 
-    const brand = await prisma.brand.create({
-        data: {
-            name: data.name,
-            imageBrand: data.imageBrand,
-        }
-    });
-
-    return brand;
-};
-
-export const getAllBrandsServices = async () => {
-    try {
-        return await prisma.brand.findMany();
-    } catch (error) {
-        throw new Error(error.message || "Lấy danh sách thương hiệu thất bại");
-    }
+    return {
+        items,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+        },
+    };
 };
 
 export const getBrandByIdServices = async (id) => {
-    try {
-        const brand = await prisma.brand.findUnique({
-            where: { id: Number(id) },
-        });
+    const brand = await prisma.brand.findUnique({
+        where: { id: Number(id) },
+    });
 
-        if (!brand) throw new Error("Thương hiệu không tồn tại");
-
-        return brand;
-    } catch (error) {
-        throw new Error(error.message || "Lấy thương hiệu thất bại");
-    }
+    if (!brand) throw new Error("Thương hiệu không tồn tại");
+    return brand;
 };
 
-export const updateBrandServices = async (id, data, imageBrand) => {
-    try {
-        const existBrand = await prisma.brand.findUnique({
-            where: { id: Number(id) },
-        });
+export const createBrandServices = async (data, image) => {
+    if (!image) throw new Error("Vui lòng upload ảnh thương hiệu");
 
-        if (!existBrand) throw new Error("Thương hiệu không tồn tại");
+    const existed = await prisma.brand.findFirst({
+        where: { name: data.name },
+    });
+    if (existed) throw new Error("Tên thương hiệu đã tồn tại");
 
-        if (data.name) {
-            const duplicated = await prisma.brand.findFirst({
-                where: {
-                    name: data.name,
-                    NOT: { id: Number(id) }
-                }
-            });
-            if (duplicated) throw new Error("Tên thương hiệu đã tồn tại");
-        }
+    return prisma.brand.create({
+        data: {
+            name: data.name,
+            description: data.description || null,
+            image,
+        },
+    });
+};
 
-        const brand = await prisma.brand.update({
-            where: { id: Number(id) },
-            data: {
+export const updateBrandServices = async (id, data, image) => {
+    const brand = await prisma.brand.findUnique({
+        where: { id: Number(id) },
+    });
+    if (!brand) throw new Error("Thương hiệu không tồn tại");
+
+    if (data.name) {
+        const duplicated = await prisma.brand.findFirst({
+            where: {
                 name: data.name,
-                ...(imageBrand && { imageBrand }),
+                NOT: { id: Number(id) },
             },
         });
-
-        return brand;
-    } catch (error) {
-        throw new Error(error.message || "Cập nhật thương hiệu thất bại");
+        if (duplicated) throw new Error("Tên thương hiệu đã tồn tại");
     }
+
+    const updateData = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (image) updateData.image = image;
+
+    return prisma.brand.update({
+        where: { id: Number(id) },
+        data: updateData,
+    });
 };
 
 export const deleteBrandServices = async (id) => {
-    try {
-        const existBrand = await prisma.brand.findUnique({
-            where: { id: Number(id) },
-        });
+    const brand = await prisma.brand.findUnique({
+        where: { id: Number(id) },
+    });
+    if (!brand) throw new Error("Thương hiệu không tồn tại");
 
-        if (!existBrand) throw new Error("Thương hiệu không tồn tại");
+    await prisma.brand.delete({
+        where: { id: Number(id) },
+    });
 
-        await prisma.brand.delete({
-            where: { id: Number(id) },
-        });
-
-        return true;
-    } catch (error) {
-        throw new Error(error.message || "Xóa thương hiệu thất bại");
-    }
+    return true;
 };

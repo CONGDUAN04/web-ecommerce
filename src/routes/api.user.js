@@ -1,12 +1,44 @@
-// src/routes/product.routes.js
-import { Router } from "express";
-import { postCreateUser, getAllUsers, putUpdateUser, deleteUserById, getUserById } from "../controllers/admin/user.controller.js";
+import express from "express";
+import { validate } from "../middleware/validate.middleware.js";
+import {
+    createUser,
+    getUsers,
+    getUserById,
+    updateUser,
+    deleteUser,
+    getRoles,
+} from "../controllers/admin/user.controller.js";
 import { uploadSingleFile } from "../middleware/multer.js";
-const router = Router();
+import { cleanupFile } from "../middleware/cleanupFile.js";
+import { idParamSchema } from "../validations/common/params.js";
+import { paginationSchema } from "../validations/common/query.js";
+import { updateUserSchema } from "../validations/user/update.user.js";
+import { createUserSchema } from "../validations/user/create.user.js";
 
-router.post("/", uploadSingleFile("avatar", "images/avatar"), postCreateUser);
-router.get("/", getAllUsers)
-router.get("/:id", getUserById)
-router.put("/:id", uploadSingleFile("avatar", "images/avatar"), putUpdateUser);
-router.delete("/:id", deleteUserById)
+const router = express.Router();
+
+router.post(
+    "/",
+    uploadSingleFile("avatar", "images/avatar"),
+    validate(createUserSchema),
+    cleanupFile,
+    createUser
+);
+
+router.get("/", validate(paginationSchema), getUsers);
+
+router.get("/roles", getRoles);
+
+router.get("/:id", validate(idParamSchema), getUserById);
+
+router.put(
+    "/:id",
+    uploadSingleFile("avatar", "images/avatar"),
+    validate(updateUserSchema),
+    cleanupFile,
+    updateUser
+);
+
+router.delete("/:id", validate(idParamSchema), deleteUser);
+
 export default router;
