@@ -66,10 +66,8 @@ export const updateColor = async (req, res) => {
 
         const color = await updateColorServices(
             req.validated.params.id,
-            {
-                ...req.validated.body,
-                image,
-            }
+            req.validated.body,
+            image
         );
 
         return res.status(200).json({

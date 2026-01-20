@@ -4,7 +4,7 @@ export const registerSchema = z.object({
         fullName: z
             .string()
             .min(1, "Họ tên không được để trống")
-            .max(5, "Họ tên tối đa 255 ký tự")
+            .max(255, "Họ tên tối đa 255 ký tự")
             .trim(),
 
         username: z

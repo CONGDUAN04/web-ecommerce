@@ -41,8 +41,6 @@ export const getUsers = async (req, res) => {
         });
     }
 };
-
-// GET BY ID
 export const getUserById = async (req, res) => {
     try {
         const user = await getUserByIdServices(req.params.id);

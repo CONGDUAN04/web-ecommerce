@@ -1,17 +1,36 @@
 import prisma from "../../config/client.js";
+import slugify from "slugify";
 export const createProductServices = async (data) => {
-    const { name, brandId, categoryId, targetId, thumbnail } = data;
+    const {
+        name,
+        description,
+        brandId,
+        categoryId,
+        targetId,
+        thumbnail,
+    } = data;
 
-    if (!thumbnail) throw new Error("Vui lòng chọn ảnh sản phẩm");
+    if (!thumbnail) {
+        throw new Error("Vui lòng chọn ảnh sản phẩm");
+    }
 
-    const [existedProduct, brand, category, target] = await Promise.all([
-        prisma.product.findFirst({ where: { name } }),
-        prisma.brand.findUnique({ where: { id: brandId } }),
-        prisma.category.findUnique({ where: { id: categoryId } }),
-        prisma.target.findUnique({ where: { id: targetId } }),
-    ]);
+    const slug = slugify(name, {
+        lower: true,
+        strict: true,
+        locale: "vi",
+    });
+
+    const [existedProduct, existedSlug, brand, category, target] =
+        await Promise.all([
+            prisma.product.findFirst({ where: { name } }),
+            prisma.product.findUnique({ where: { slug } }),
+            prisma.brand.findUnique({ where: { id: brandId } }),
+            prisma.category.findUnique({ where: { id: categoryId } }),
+            prisma.target.findUnique({ where: { id: targetId } }),
+        ]);
 
     if (existedProduct) throw new Error("Tên sản phẩm đã tồn tại");
+    if (existedSlug) throw new Error("Slug sản phẩm đã tồn tại");
     if (!brand) throw new Error("Brand không tồn tại");
     if (!category) throw new Error("Category không tồn tại");
     if (!target) throw new Error("Target không tồn tại");
@@ -19,10 +38,11 @@ export const createProductServices = async (data) => {
     return prisma.product.create({
         data: {
             name,
-            description: data.description ?? "",
+            slug,
+            description: description ?? "",
             thumbnail,
-            quantity: 0,
-            isActive: true, // ✅ thêm
+            quantity: 0, // ⚠️ cache field – không set từ API
+            isActive: true,
             brandId,
             categoryId,
             targetId,
@@ -96,25 +116,68 @@ export const getProductByIdServices = async (id) => {
 
 export const updateProductServices = async (id, data, thumbnail) => {
     return prisma.$transaction(async (tx) => {
-        const [product, brand, category, target] = await Promise.all([
-            tx.product.findUnique({ where: { id: Number(id) } }),
-            data.brandId !== undefined ? tx.brand.findUnique({ where: { id: data.brandId } }) : null,
-            data.categoryId !== undefined ? tx.category.findUnique({ where: { id: data.categoryId } }) : null,
-            data.targetId !== undefined ? tx.target.findUnique({ where: { id: data.targetId } }) : null,
+        const product = await tx.product.findUnique({
+            where: { id: Number(id) },
+        });
+
+        if (!product) {
+            throw new Error("Sản phẩm không tồn tại");
+        }
+
+        // 🔹 Validate relation nếu có update
+        const [brand, category, target] = await Promise.all([
+            data.brandId !== undefined
+                ? tx.brand.findUnique({ where: { id: data.brandId } })
+                : null,
+            data.categoryId !== undefined
+                ? tx.category.findUnique({ where: { id: data.categoryId } })
+                : null,
+            data.targetId !== undefined
+                ? tx.target.findUnique({ where: { id: data.targetId } })
+                : null,
         ]);
 
-        if (!product) throw new Error("Sản phẩm không tồn tại");
-        if (data.brandId !== undefined && !brand) throw new Error("Brand không tồn tại");
-        if (data.categoryId !== undefined && !category) throw new Error("Category không tồn tại");
-        if (data.targetId !== undefined && !target) throw new Error("Target không tồn tại");
+        if (data.brandId !== undefined && !brand)
+            throw new Error("Brand không tồn tại");
+
+        if (data.categoryId !== undefined && !category)
+            throw new Error("Category không tồn tại");
+
+        if (data.targetId !== undefined && !target)
+            throw new Error("Target không tồn tại");
+
+        // 🔹 Nếu đổi name → check trùng + tạo slug mới
+        let newSlug = product.slug;
+
+        if (data.name && data.name !== product.name) {
+            newSlug = slugify(data.name, {
+                lower: true,
+                strict: true,
+                locale: "vi",
+            });
+
+            const existedSlug = await tx.product.findFirst({
+                where: {
+                    slug: newSlug,
+                    NOT: { id: Number(id) },
+                },
+            });
+
+            if (existedSlug) {
+                throw new Error("Slug sản phẩm đã tồn tại");
+            }
+        }
 
         return tx.product.update({
             where: { id: Number(id) },
             data: {
                 name: data.name ?? product.name,
+                slug: newSlug,
                 description: data.description ?? product.description,
                 isActive:
-                    data.isActive !== undefined ? data.isActive : product.isActive,
+                    data.isActive !== undefined
+                        ? data.isActive
+                        : product.isActive,
                 brandId: data.brandId ?? product.brandId,
                 categoryId: data.categoryId ?? product.categoryId,
                 targetId: data.targetId ?? product.targetId,

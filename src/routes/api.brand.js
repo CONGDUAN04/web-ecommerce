@@ -22,7 +22,7 @@ router.get("/:id", validate(idParamSchema), getBrandById);
 
 router.post(
     "/",
-    uploadSingleFile("imageBrand", "images/brand"),
+    uploadSingleFile("image", "images/brand"),
     uploadErrorHandler,
     validate(createBrandSchema),
     createBrand

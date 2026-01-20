@@ -43,8 +43,8 @@ export const getBrandById = async (req, res) => {
 
 export const createBrand = async (req, res) => {
     try {
-        const imageBrand = req.file?.filename;
-        const brand = await createBrandServices(req.validated.body, imageBrand);
+        const image = req.file?.filename;
+        const brand = await createBrandServices(req.validated.body, image);
 
         return res.status(201).json({
             ErrorCode: 0,
@@ -61,11 +61,11 @@ export const createBrand = async (req, res) => {
 
 export const updateBrand = async (req, res) => {
     try {
-        const imageBrand = req.file?.filename;
+        const image = req.file?.filename;
         const brand = await updateBrandServices(
             req.validated.params.id,
             req.validated.body,
-            imageBrand
+            image
         );
 
         return res.status(200).json({

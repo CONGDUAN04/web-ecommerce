@@ -67,7 +67,7 @@ export const createColorServices = async (data) => {
     });
 };
 
-export const updateColorServices = async (id, data) => {
+export const updateColorServices = async (id, data, image) => {
     const existColor = await prisma.colorVariant.findUnique({
         where: { id: +id },
     });
@@ -89,14 +89,12 @@ export const updateColorServices = async (id, data) => {
     return prisma.colorVariant.update({
         where: { id: +id },
         data: {
-            color: data.color ?? existColor.color,
-            image: data.image ?? existColor.image,
-            productId: data.productId
-                ? +data.productId
-                : existColor.productId,
+            ...data,
+            ...(image && { image }),
         },
     });
 };
+
 
 export const deleteColorServices = async (id) => {
     const colorId = Number(id);

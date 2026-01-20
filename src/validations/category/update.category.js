@@ -15,9 +15,5 @@ export const updateCategorySchema = z.object({
             .max(500, "Mô tả tối đa 500 ký tự")
             .trim()
             .optional(),
-    }).refine(
-        (data) => data.name !== undefined || data.description !== undefined,
-        { message: "Phải cung cấp ít nhất một trường để cập nhật" }
-    ),
-    // Bỏ query nếu không dùng, hoặc để mặc định Zod xử lý
+    })
 });

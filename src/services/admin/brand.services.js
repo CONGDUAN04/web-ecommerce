@@ -34,7 +34,7 @@ export const getBrandByIdServices = async (id) => {
     return brand;
 };
 
-export const createBrandServices = async (data, imageBrand) => {
+export const createBrandServices = async (data, image) => {
     const existingBrand = await prisma.brand.findFirst({
         where: {
             name: data.name,
@@ -46,12 +46,12 @@ export const createBrandServices = async (data, imageBrand) => {
     return prisma.brand.create({
         data: {
             name: data.name,
-            imageBrand,
+            image,
         },
     });
 };
 
-export const updateBrandServices = async (id, data, imageBrand) => {
+export const updateBrandServices = async (id, data, image) => {
     const brand = await prisma.brand.findUnique({
         where: { id: Number(id) },
     });
@@ -69,8 +69,7 @@ export const updateBrandServices = async (id, data, imageBrand) => {
 
     const updateData = {};
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.description !== undefined) updateData.description = data.description;
-    if (imageBrand) updateData.imageBrand = imageBrand;
+    if (image) updateData.image = image;
 
     return prisma.brand.update({
         where: { id: Number(id) },

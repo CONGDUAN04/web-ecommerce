@@ -7,9 +7,9 @@ datasource db {
   // url      = env("DATABASE_URL")
 }
 
-/**
- * ===================== ENUM =====================
- */
+// /**
+//  * ===================== ENUM =====================
+//  */
 
 enum AccountType {
   SYSTEM
@@ -32,10 +32,10 @@ enum PaymentMethod {
   BANKING
 }
 
-enum PaymentStatus {
-  PAYMENT_UNPAID
-  PAYMENT_PAID
-  PAYMENT_PENDING
+enum OrderPaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
 }
 
 enum PaymentProvider {
@@ -45,10 +45,15 @@ enum PaymentProvider {
   STRIPE
 }
 
-enum PaymentRecordStatus {
+enum PaymentStatus {
   PENDING
   SUCCESS
   FAILED
+}
+
+enum VoucherType {
+  PERCENT
+  FIXED
 }
 
 /**
@@ -69,7 +74,7 @@ model Session {
 model Role {
   id          Int      @id @default(autoincrement())
   name        String   @unique @db.VarChar(100)
-  description String   @db.VarChar(255)
+  description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -83,8 +88,7 @@ model User {
   username    String      @unique @db.VarChar(255)
   password    String      @db.VarChar(255)
   fullName    String?
-  address     String?
-  phone       String?
+  phone       String?     @unique
   avatar      String?
   accountType AccountType @default(SYSTEM)
 
@@ -100,6 +104,7 @@ model User {
   wishlists Wishlist[]
   addresses Address[]
 
+  @@index([roleId])
   @@map("users")
 }
 
@@ -121,11 +126,11 @@ model Category {
 }
 
 model Brand {
-  id         Int      @id @default(autoincrement())
-  name       String   @unique
-  imageBrand String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   products Product[]
 
@@ -147,32 +152,38 @@ model Target {
 model Product {
   id          Int     @id @default(autoincrement())
   name        String
-  description String? @db.MediumText
   thumbnail   String?
-  quantity    Int
-  sold        Int     @default(0)
+  slug        String  @unique
+  description String?
+
+  quantity Int @default(0)
+  /// ⚠️ CACHE FIELD
+  /// Tổng tồn kho = SUM(StorageVariant.quantity)
+  /// ❌ KHÔNG update trực tiếp từ API
 
   isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  target     Target?   @relation(fields: [targetId], references: [id])
-  targetId   Int?
-  brand      Brand?    @relation(fields: [brandId], references: [id])
   brandId    Int?
-  category   Category? @relation(fields: [categoryId], references: [id])
   categoryId Int?
+  targetId   Int?
+
+  brand    Brand?    @relation(fields: [brandId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+  target   Target?   @relation(fields: [targetId], references: [id])
 
   colors         ColorVariant[]
-  cartDetails    CartDetail[]
-  orderDetails   OrderDetail[]
   reviews        Review[]
   wishlists      Wishlist[]
-  images         ProductImage[]
+  productImages  ProductImage[]
   specifications Specification[]
 
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([targetId])
+  @@index([isActive])
   @@map("products")
 }
 
@@ -181,9 +192,11 @@ model Product {
  */
 
 model ColorVariant {
-  id        Int       @id @default(autoincrement())
-  color     String
-  image     String?
+  id    Int     @id @default(autoincrement())
+  color String
+  image String?
+
+  isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -193,15 +206,21 @@ model ColorVariant {
 
   storages StorageVariant[]
 
+  @@unique([productId, color])
+  @@index([productId])
+  @@index([isActive])
   @@map("color_variants")
 }
 
 model StorageVariant {
-  id        Int       @id @default(autoincrement())
-  name      String
-  price     Int
-  quantity  Int
-  sold      Int       @default(0)
+  id       Int    @id @default(autoincrement())
+  sku      String @unique @db.VarChar(100)
+  name     String
+  price    Int
+  quantity Int    @default(0)
+  sold     Int    @default(0)
+
+  isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -209,9 +228,13 @@ model StorageVariant {
   color   ColorVariant @relation(fields: [colorId], references: [id], onDelete: Cascade)
   colorId Int
 
-  cartDetails  CartDetailVariant[]
-  orderDetails OrderDetailVariant[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
 
+  @@unique([colorId, name])
+  @@index([colorId])
+  @@index([price])
+  @@index([isActive])
   @@map("storage_variants")
 }
 
@@ -228,28 +251,12 @@ model Cart {
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int  @unique
 
-  cartDetails        CartDetail[]
-  cartDetailVariants CartDetailVariant[]
+  cartItems CartItem[]
 
   @@map("carts")
 }
 
-model CartDetail {
-  id        Int      @id @default(autoincrement())
-  price     Int
-  quantity  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  cartId    Int
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId Int
-
-  @@map("cart_details")
-}
-
-model CartDetailVariant {
+model CartItem {
   id        Int      @id @default(autoincrement())
   price     Int
   quantity  Int
@@ -261,7 +268,10 @@ model CartDetailVariant {
   storage   StorageVariant @relation(fields: [storageId], references: [id], onDelete: Cascade)
   storageId Int
 
-  @@map("cart_detail_variants")
+  @@unique([cartId, storageId])
+  @@index([cartId])
+  @@index([storageId])
+  @@map("cart_items")
 }
 
 /**
@@ -275,9 +285,9 @@ model Order {
   receiverPhone   String
   receiverAddress String
 
-  status        OrderStatus   @default(PENDING)
+  status        OrderStatus
   paymentMethod PaymentMethod
-  paymentStatus PaymentStatus @default(PAYMENT_UNPAID)
+  paymentStatus OrderPaymentStatus @default(UNPAID)
   paymentRef    String?
 
   createdAt DateTime @default(now())
@@ -288,29 +298,17 @@ model Order {
   voucher   Voucher? @relation(fields: [voucherId], references: [id])
   voucherId Int?
 
-  orderDetails        OrderDetail[]
-  orderDetailVariants OrderDetailVariant[]
-  payments            Payment[]
+  orderItems OrderItem[]
+  payments   Payment[]
 
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
   @@map("orders")
 }
 
-model OrderDetail {
-  id        Int      @id @default(autoincrement())
-  price     Int
-  quantity  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  order     Order   @relation(fields: [orderId], references: [id])
-  orderId   Int
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-
-  @@map("order_details")
-}
-
-model OrderDetailVariant {
+model OrderItem {
   id        Int      @id @default(autoincrement())
   price     Int
   quantity  Int
@@ -322,7 +320,9 @@ model OrderDetailVariant {
   storage   StorageVariant @relation(fields: [storageId], references: [id])
   storageId Int
 
-  @@map("order_detail_variants")
+  @@index([orderId])
+  @@index([storageId])
+  @@map("order_items")
 }
 
 /**
@@ -330,17 +330,20 @@ model OrderDetailVariant {
  */
 
 model Payment {
-  id        Int                 @id @default(autoincrement())
+  id        Int             @id @default(autoincrement())
   amount    Int
   provider  PaymentProvider
-  status    PaymentRecordStatus
+  status    PaymentStatus
   rawData   Json?
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 
   order   Order @relation(fields: [orderId], references: [id])
   orderId Int
 
+  @@index([orderId])
+  @@index([provider])
+  @@index([status])
   @@map("payments")
 }
 
@@ -349,8 +352,12 @@ model Payment {
  */
 
 model Review {
-  id        Int      @id @default(autoincrement())
-  rating    Int
+  id Int @id @default(autoincrement())
+
+  /// Rating từ 1 → 5
+  /// Constraint được validate ở tầng service
+  rating Int
+
   comment   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -361,23 +368,29 @@ model Review {
   userId    Int
 
   @@unique([userId, productId])
+  @@index([productId])
+  @@index([rating])
   @@map("reviews")
 }
 
 model Voucher {
-  id         Int      @id @default(autoincrement())
-  code       String   @unique
-  discount   Int
+  id            Int         @id @default(autoincrement())
+  code          String      @unique
+  type          VoucherType
+  discount      Int
+  maxDiscount   Int?
+  minOrderValue Int?
+
   startDate  DateTime
   endDate    DateTime
   usageLimit Int?
   usedCount  Int      @default(0)
   isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
 
   orders Order[]
 
+  @@index([isActive])
+  @@index([startDate, endDate])
   @@map("vouchers")
 }
 
@@ -392,6 +405,7 @@ model Wishlist {
   productId Int
 
   @@unique([userId, productId])
+  @@index([productId])
   @@map("wishlists")
 }
 
@@ -404,6 +418,7 @@ model ProductImage {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId Int
 
+  @@index([productId])
   @@map("product_images")
 }
 
@@ -417,6 +432,7 @@ model Specification {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId Int
 
+  @@index([productId])
   @@map("specifications")
 }
 
@@ -432,6 +448,7 @@ model Address {
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId Int
 
+  @@index([userId])
   @@map("addresses")
 }
 
@@ -444,6 +461,7 @@ model Banner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([isActive])
   @@map("banners")
 }
 
@@ -457,5 +475,6 @@ model Slider {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([sortOrder])
   @@map("sliders")
 }

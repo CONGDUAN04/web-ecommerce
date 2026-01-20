@@ -41,12 +41,9 @@ export const getStorages = async (req, res) => {
     }
 };
 
-
 export const getStorageById = async (req, res) => {
     try {
-        const storage = await getStorageByIdServices(
-            req.validated.params.id
-        );
+        const storage = await getStorageByIdServices(req.validated.params.id);
 
         return res.status(200).json({
             ErrorCode: 0,
