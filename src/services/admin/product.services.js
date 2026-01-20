@@ -1,25 +1,28 @@
 import prisma from "../../config/client.js";
-
 export const createProductServices = async (data) => {
     const { name, brandId, categoryId, targetId, thumbnail } = data;
 
     if (!thumbnail) throw new Error("Vui lòng chọn ảnh sản phẩm");
+
     const [existedProduct, brand, category, target] = await Promise.all([
         prisma.product.findFirst({ where: { name } }),
         prisma.brand.findUnique({ where: { id: brandId } }),
         prisma.category.findUnique({ where: { id: categoryId } }),
         prisma.target.findUnique({ where: { id: targetId } }),
     ]);
+
     if (existedProduct) throw new Error("Tên sản phẩm đã tồn tại");
     if (!brand) throw new Error("Brand không tồn tại");
     if (!category) throw new Error("Category không tồn tại");
     if (!target) throw new Error("Target không tồn tại");
+
     return prisma.product.create({
         data: {
             name,
             description: data.description ?? "",
             thumbnail,
             quantity: 0,
+            isActive: true, // ✅ thêm
             brandId,
             categoryId,
             targetId,
@@ -32,6 +35,7 @@ export const createProductServices = async (data) => {
     });
 };
 
+
 export const getProductsServices = async ({ page = 1, limit = 10 }) => {
     page = Math.max(1, Number(page));
     limit = Math.min(Math.max(1, Number(limit)), 100);
@@ -39,6 +43,9 @@ export const getProductsServices = async ({ page = 1, limit = 10 }) => {
 
     const [items, total] = await Promise.all([
         prisma.product.findMany({
+            where: {
+                deletedAt: null,
+            },
             skip,
             take: limit,
             orderBy: { id: "desc" },
@@ -47,13 +54,13 @@ export const getProductsServices = async ({ page = 1, limit = 10 }) => {
                 category: true,
                 target: true,
                 colors: {
-                    include: {
-                        storages: true,
-                    },
+                    include: { storages: true },
                 },
             },
         }),
-        prisma.product.count(),
+        prisma.product.count({
+            where: { deletedAt: null },
+        }),
     ]);
 
     return {
@@ -66,6 +73,7 @@ export const getProductsServices = async ({ page = 1, limit = 10 }) => {
         },
     };
 };
+
 
 export const getProductByIdServices = async (id) => {
     const product = await prisma.product.findUnique({
@@ -88,14 +96,12 @@ export const getProductByIdServices = async (id) => {
 
 export const updateProductServices = async (id, data, thumbnail) => {
     return prisma.$transaction(async (tx) => {
-        const checks = await Promise.all([
+        const [product, brand, category, target] = await Promise.all([
             tx.product.findUnique({ where: { id: Number(id) } }),
             data.brandId !== undefined ? tx.brand.findUnique({ where: { id: data.brandId } }) : null,
             data.categoryId !== undefined ? tx.category.findUnique({ where: { id: data.categoryId } }) : null,
             data.targetId !== undefined ? tx.target.findUnique({ where: { id: data.targetId } }) : null,
         ]);
-
-        const [product, brand, category, target] = checks;
 
         if (!product) throw new Error("Sản phẩm không tồn tại");
         if (data.brandId !== undefined && !brand) throw new Error("Brand không tồn tại");
@@ -107,7 +113,8 @@ export const updateProductServices = async (id, data, thumbnail) => {
             data: {
                 name: data.name ?? product.name,
                 description: data.description ?? product.description,
-                isActive: data.isActive ?? product.isActive,
+                isActive:
+                    data.isActive !== undefined ? data.isActive : product.isActive,
                 brandId: data.brandId ?? product.brandId,
                 categoryId: data.categoryId ?? product.categoryId,
                 targetId: data.targetId ?? product.targetId,
@@ -122,11 +129,13 @@ export const updateProductServices = async (id, data, thumbnail) => {
     });
 };
 
+
 export const deleteProductServices = async (id) => {
     return prisma.$transaction(async (tx) => {
         const product = await tx.product.findUnique({
             where: { id: Number(id) },
         });
+
         if (!product) throw new Error("Sản phẩm không tồn tại");
 
         const sold = await tx.orderDetailVariant.findFirst({
@@ -154,6 +163,7 @@ export const deleteProductServices = async (id) => {
             };
         }
 
+        // ✅ Chưa bán → hard delete
         await tx.product.delete({
             where: { id: Number(id) },
         });
