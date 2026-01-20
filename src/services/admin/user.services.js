@@ -126,9 +126,3 @@ export const deleteUserServices = async (id) => {
     return true;
 };
 
-// GET ROLES
-export const getRolesServices = async () => {
-    return prisma.role.findMany({
-        orderBy: { id: "asc" }
-    });
-};

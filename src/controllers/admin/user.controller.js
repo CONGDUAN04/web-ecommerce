@@ -4,7 +4,6 @@ import {
     getUserByIdServices,
     updateUserServices,
     deleteUserServices,
-    getRolesServices
 } from "../../services/admin/user.services.js";
 
 export const createUser = async (req, res) => {
@@ -93,20 +92,4 @@ export const deleteUser = async (req, res) => {
     }
 };
 
-// ROLES
-export const getRoles = async (req, res) => {
-    try {
-        const roles = await getRolesServices();
 
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Lấy danh sách role thành công",
-            data: roles
-        });
-    } catch (error) {
-        return res.status(500).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};

@@ -6,7 +6,6 @@ import {
     getUserById,
     updateUser,
     deleteUser,
-    getRoles,
 } from "../controllers/admin/user.controller.js";
 import { uploadSingleFile } from "../middleware/multer.js";
 import { idParamSchema } from "../validations/common/params.js";
@@ -26,8 +25,6 @@ router.post(
 );
 
 router.get("/", validate(paginationSchema), getUsers);
-
-router.get("/roles", getRoles);
 
 router.get("/:id", validate(idParamSchema), getUserById);
 

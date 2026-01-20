@@ -10,7 +10,6 @@ export const createProduct = async (req, res) => {
     try {
         const thumbnail = req.file?.filename;
 
-        // Sử dụng req.validated.body thay vì req.body
         const product = await createProductServices({
             ...req.validated.body,
             thumbnail,
