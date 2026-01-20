@@ -13,6 +13,7 @@ import { idParamSchema } from "../validations/common/params.js";
 import { paginationSchema } from "../validations/common/query.js";
 import { createColorSchema } from "../validations/color/create.color.js";
 import { updateColorSchema } from "../validations/color/update.color.js";
+import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
 
 
 const router = express.Router();
@@ -22,12 +23,14 @@ router.get("/:id", validate(idParamSchema), getColorById);
 router.post(
     "/",
     uploadSingleFile("image", "images/color"),
+    uploadErrorHandler,
     validate(createColorSchema),
     createColor
 );
 router.put(
     "/:id",
     uploadSingleFile("image", "images/color"),
+    uploadErrorHandler,
     validate(updateColorSchema),
     updateColor
 );

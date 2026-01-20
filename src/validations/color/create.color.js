@@ -9,7 +9,7 @@ export const createColorSchema = z.object({
 
         productId: z
             .string()
-            .regex(/^\d+$/, "Product ID phải là số nguyên dương")
+            .regex(/^\d+$/, "Product ID phải là số nguyên dương ok")
             .transform(Number),
     }),
 });

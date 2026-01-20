@@ -31,8 +31,7 @@ export const createProduct = async (req, res) => {
 
 export const getProducts = async (req, res) => {
     try {
-        // Sử dụng req.validated.query
-        const products = await getProductsServices(req.validated?.query || req.query);
+        const products = await getProductsServices(req.validated.query);
 
         return res.status(200).json({
             ErrorCode: 0,
@@ -49,7 +48,6 @@ export const getProducts = async (req, res) => {
 
 export const getProductById = async (req, res) => {
     try {
-        // Sử dụng req.validated.params
         const product = await getProductByIdServices(req.validated.params.id);
 
         return res.status(200).json({
@@ -88,7 +86,6 @@ export const updateProduct = async (req, res) => {
 
 export const deleteProduct = async (req, res) => {
     try {
-        // Sử dụng req.validated.params
         const result = await deleteProductServices(req.validated.params.id);
 
         return res.status(200).json({

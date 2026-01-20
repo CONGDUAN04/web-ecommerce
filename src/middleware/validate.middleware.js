@@ -1,8 +1,5 @@
 export const validate = (schema) => async (req, res, next) => {
     try {
-        console.log("BEFORE VALIDATE req.query =", req.query);
-        console.log("BEFORE VALIDATE req.body =", req.body);
-        console.log("BEFORE VALIDATE req.params =", req.params);
         const result = await schema.safeParseAsync({
             params: req.params,
             query: req.query,

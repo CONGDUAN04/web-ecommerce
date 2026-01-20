@@ -99,26 +99,43 @@ export const updateColorServices = async (id, data) => {
 };
 
 export const deleteColorServices = async (id) => {
-    const color = await prisma.colorVariant.findUnique({
-        where: { id: +id },
-    });
-    if (!color) throw new Error("Màu sản phẩm không tồn tại");
+    const colorId = Number(id);
 
-    const used = await prisma.orderDetailVariant.count({
+    const color = await prisma.colorVariant.findUnique({
+        where: { id: colorId },
+    });
+
+    if (!color) {
+        throw new Error("Màu sản phẩm không tồn tại");
+    }
+
+    const orderCount = await prisma.orderDetailVariant.count({
         where: {
             storage: {
-                colorId: +id,
+                colorId: colorId,
             },
         },
     });
 
-    if (used > 0) {
-        throw new Error("Màu sản phẩm đã được sử dụng, không thể xóa");
+    if (orderCount > 0) {
+        throw new Error(
+            "Màu sản phẩm đã phát sinh đơn hàng, không thể xóa"
+        );
     }
-
-    await prisma.colorVariant.delete({
-        where: { id: +id },
+    await prisma.$transaction(async (tx) => {
+        await tx.storageVariant.deleteMany({
+            where: {
+                colorId: colorId,
+            },
+        });
+        await tx.colorVariant.delete({
+            where: {
+                id: colorId,
+            },
+        });
     });
-
-    return true;
 };
+
+
+
+

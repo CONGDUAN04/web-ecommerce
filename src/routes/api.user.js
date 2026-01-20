@@ -9,19 +9,19 @@ import {
     getRoles,
 } from "../controllers/admin/user.controller.js";
 import { uploadSingleFile } from "../middleware/multer.js";
-import { cleanupFile } from "../middleware/cleanupFile.js";
 import { idParamSchema } from "../validations/common/params.js";
 import { paginationSchema } from "../validations/common/query.js";
 import { updateUserSchema } from "../validations/user/update.user.js";
 import { createUserSchema } from "../validations/user/create.user.js";
+import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
 
 const router = express.Router();
 
 router.post(
     "/",
     uploadSingleFile("avatar", "images/avatar"),
+    uploadErrorHandler,
     validate(createUserSchema),
-    cleanupFile,
     createUser
 );
 
@@ -34,8 +34,8 @@ router.get("/:id", validate(idParamSchema), getUserById);
 router.put(
     "/:id",
     uploadSingleFile("avatar", "images/avatar"),
+    uploadErrorHandler,
     validate(updateUserSchema),
-    cleanupFile,
     updateUser
 );
 

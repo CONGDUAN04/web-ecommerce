@@ -9,13 +9,6 @@ export const updateBrandSchema = z.object({
             .max(255, "Tên thương hiệu tối đa 255 ký tự")
             .trim()
             .optional(),
-
-        description: z
-            .string()
-            .max(500, "Mô tả tối đa 500 ký tự")
-            .trim()
-            .optional()
-            .nullable(),
     }),
     query: z.object({}).optional(),
 });

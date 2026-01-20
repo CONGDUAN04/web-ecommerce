@@ -12,7 +12,6 @@ export const storageItemSchema = z.object({
             message: "Giá không được để trống",
         })
         .refine((val) => {
-            // Nếu là string, parse về number (loại bỏ dấu chấm phân cách nghìn)
             const numVal = typeof val === "string"
                 ? Number(val.replace(/\./g, ""))
                 : val;
@@ -21,7 +20,6 @@ export const storageItemSchema = z.object({
             message: "Giá phải là số không âm",
         })
         .transform((val) => {
-            // Transform string "1.000.000" -> 1000000
             return typeof val === "string"
                 ? Number(val.replace(/\./g, ""))
                 : val;

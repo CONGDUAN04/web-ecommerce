@@ -181,11 +181,12 @@ model Product {
  */
 
 model ColorVariant {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   color     String
   image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId Int
@@ -196,13 +197,14 @@ model ColorVariant {
 }
 
 model StorageVariant {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
   price     Int
   quantity  Int
-  sold      Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sold      Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   color   ColorVariant @relation(fields: [colorId], references: [id], onDelete: Cascade)
   colorId Int

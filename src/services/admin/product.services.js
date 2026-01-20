@@ -4,21 +4,16 @@ export const createProductServices = async (data) => {
     const { name, brandId, categoryId, targetId, thumbnail } = data;
 
     if (!thumbnail) throw new Error("Vui lòng chọn ảnh sản phẩm");
-
-    const existedProduct = await prisma.product.findFirst({
-        where: { name },
-    });
+    const [existedProduct, brand, category, target] = await Promise.all([
+        prisma.product.findFirst({ where: { name } }),
+        prisma.brand.findUnique({ where: { id: brandId } }),
+        prisma.category.findUnique({ where: { id: categoryId } }),
+        prisma.target.findUnique({ where: { id: targetId } }),
+    ]);
     if (existedProduct) throw new Error("Tên sản phẩm đã tồn tại");
-
-    const brand = await prisma.brand.findUnique({ where: { id: brandId } });
     if (!brand) throw new Error("Brand không tồn tại");
-
-    const category = await prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) throw new Error("Category không tồn tại");
-
-    const target = await prisma.target.findUnique({ where: { id: targetId } });
     if (!target) throw new Error("Target không tồn tại");
-
     return prisma.product.create({
         data: {
             name,
@@ -93,32 +88,19 @@ export const getProductByIdServices = async (id) => {
 
 export const updateProductServices = async (id, data, thumbnail) => {
     return prisma.$transaction(async (tx) => {
-        const product = await tx.product.findUnique({
-            where: { id: Number(id) },
-        });
+        const checks = await Promise.all([
+            tx.product.findUnique({ where: { id: Number(id) } }),
+            data.brandId !== undefined ? tx.brand.findUnique({ where: { id: data.brandId } }) : null,
+            data.categoryId !== undefined ? tx.category.findUnique({ where: { id: data.categoryId } }) : null,
+            data.targetId !== undefined ? tx.target.findUnique({ where: { id: data.targetId } }) : null,
+        ]);
+
+        const [product, brand, category, target] = checks;
 
         if (!product) throw new Error("Sản phẩm không tồn tại");
-
-        if (data.brandId !== undefined) {
-            const brand = await tx.brand.findUnique({
-                where: { id: data.brandId },
-            });
-            if (!brand) throw new Error("Brand không tồn tại");
-        }
-
-        if (data.categoryId !== undefined) {
-            const category = await tx.category.findUnique({
-                where: { id: data.categoryId },
-            });
-            if (!category) throw new Error("Category không tồn tại");
-        }
-
-        if (data.targetId !== undefined) {
-            const target = await tx.target.findUnique({
-                where: { id: data.targetId },
-            });
-            if (!target) throw new Error("Target không tồn tại");
-        }
+        if (data.brandId !== undefined && !brand) throw new Error("Brand không tồn tại");
+        if (data.categoryId !== undefined && !category) throw new Error("Category không tồn tại");
+        if (data.targetId !== undefined && !target) throw new Error("Target không tồn tại");
 
         return tx.product.update({
             where: { id: Number(id) },

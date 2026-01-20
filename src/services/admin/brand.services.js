@@ -34,24 +34,24 @@ export const getBrandByIdServices = async (id) => {
     return brand;
 };
 
-export const createBrandServices = async (data, image) => {
-    if (!image) throw new Error("Vui lòng upload ảnh thương hiệu");
-
-    const existed = await prisma.brand.findFirst({
-        where: { name: data.name },
+export const createBrandServices = async (data, imageBrand) => {
+    const existingBrand = await prisma.brand.findFirst({
+        where: {
+            name: data.name,
+        },
     });
-    if (existed) throw new Error("Tên thương hiệu đã tồn tại");
-
+    if (existingBrand) {
+        throw new Error("Tên thương hiệu đã tồn tại");
+    }
     return prisma.brand.create({
         data: {
             name: data.name,
-            description: data.description || null,
-            image,
+            imageBrand,
         },
     });
 };
 
-export const updateBrandServices = async (id, data, image) => {
+export const updateBrandServices = async (id, data, imageBrand) => {
     const brand = await prisma.brand.findUnique({
         where: { id: Number(id) },
     });
@@ -70,7 +70,7 @@ export const updateBrandServices = async (id, data, image) => {
     const updateData = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
-    if (image) updateData.image = image;
+    if (imageBrand) updateData.imageBrand = imageBrand;
 
     return prisma.brand.update({
         where: { id: Number(id) },

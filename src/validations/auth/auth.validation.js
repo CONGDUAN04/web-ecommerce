@@ -4,7 +4,7 @@ export const registerSchema = z.object({
         fullName: z
             .string()
             .min(1, "Họ tên không được để trống")
-            .max(255, "Họ tên tối đa 255 ký tự")
+            .max(5, "Họ tên tối đa 255 ký tự")
             .trim(),
 
         username: z
@@ -27,7 +27,6 @@ export const registerSchema = z.object({
     }),
 });
 
-// Schema đăng nhập
 export const loginSchema = z.object({
     body: z.object({
         username: z
@@ -41,7 +40,6 @@ export const loginSchema = z.object({
     }),
 });
 
-// Schema đổi mật khẩu
 export const changePasswordSchema = z.object({
     body: z.object({
         oldPassword: z
@@ -62,7 +60,6 @@ export const changePasswordSchema = z.object({
     }),
 });
 
-// Schema cập nhật profile
 export const updateProfileSchema = z.object({
     body: z.object({
         fullName: z
