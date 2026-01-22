@@ -82,7 +82,6 @@ export const getUserById = async (userId) => {
             username: true,
             fullName: true,
             phone: true,
-            address: true,
             avatar: true,
             roleId: true,
             role: {

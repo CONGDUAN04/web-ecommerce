@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 export const createColorSchema = z.object({
     body: z.object({
         color: z
@@ -9,7 +10,8 @@ export const createColorSchema = z.object({
 
         productId: z
             .string()
-            .regex(/^\d+$/, "Product ID phải là số nguyên dương ok")
+            .min(1, "Product ID không được để trống")
+            .regex(/^\d+$/, "Product ID phải là số nguyên dương")
             .transform(Number),
     }),
 });

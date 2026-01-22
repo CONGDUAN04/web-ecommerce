@@ -13,13 +13,11 @@ export const createProductServices = async (data) => {
     if (!thumbnail) {
         throw new Error("Vui lòng chọn ảnh sản phẩm");
     }
-
     const slug = slugify(name, {
         lower: true,
         strict: true,
         locale: "vi",
     });
-
     const [existedProduct, existedSlug, brand, category, target] =
         await Promise.all([
             prisma.product.findFirst({ where: { name } }),

@@ -3,19 +3,20 @@ import { ACCOUNT_TYPE } from "../../config/constant.js";
 import { hashPassword } from "../../utils/hashPassword.js";
 
 export const createUserServices = async (data, avatar) => {
-    // Check username tồn tại
     const existUser = await prisma.user.findUnique({
         where: { username: data.username }
     });
     if (existUser) throw new Error("Username đã tồn tại");
-
-    // Check roleId (bắt buộc)
+    if (data.phone) {
+        const existPhone = await prisma.user.findUnique({
+            where: { phone: data.phone }
+        });
+        if (existPhone) throw new Error("Số điện thoại đã tồn tại");
+    }
     const role = await prisma.role.findUnique({
         where: { id: data.roleId }
     });
     if (!role) throw new Error("Role không tồn tại");
-
-    // Hash password mặc định
     const passwordHashed = await hashPassword("123456");
 
     // Tạo user mới
@@ -24,11 +25,10 @@ export const createUserServices = async (data, avatar) => {
             username: data.username,
             password: passwordHashed,
             fullName: data.fullName,
-            address: data.address ?? null,
             phone: data.phone ?? null,
             avatar: avatar ?? null,
             accountType: ACCOUNT_TYPE.SYSTEM,
-            roleId: data.roleId
+            roleId: +data.roleId
         },
         include: { role: true }
     });
@@ -71,40 +71,57 @@ export const getUserByIdServices = async (id) => {
 };
 
 export const updateUserServices = async (id, data, avatar) => {
+    const userId = Number(id);
+
     const existUser = await prisma.user.findUnique({
-        where: { id: Number(id) }
+        where: { id: userId }
     });
     if (!existUser) throw new Error("Người dùng không tồn tại");
 
-    // Check roleId nếu có trong data update
-    if (data.roleId !== undefined && data.roleId !== null) {
+    // Check role
+    if (data.roleId !== undefined && data.roleId !== null && data.roleId !== "") {
         const role = await prisma.role.findUnique({
             where: { id: Number(data.roleId) }
         });
         if (!role) throw new Error("Role không tồn tại");
     }
 
-    // Prepare update data
+    // Check trùng phone
+    if (data.phone !== undefined && data.phone !== null && data.phone !== "") {
+        const existPhone = await prisma.user.findFirst({
+            where: {
+                phone: data.phone,
+                NOT: { id: userId }
+            }
+        });
+        if (existPhone) throw new Error("Số điện thoại đã tồn tại");
+    }
+
     const updateData = {};
 
-    if (data.fullName !== undefined) updateData.fullName = data.fullName;
-    if (data.address !== undefined) updateData.address = data.address;
+    if (data.fullName !== undefined) {
+        updateData.fullName = data.fullName;
+    }
+
     if (data.phone !== undefined) {
-        // Nếu phone là empty string hoặc null thì set null
         updateData.phone = data.phone === "" ? null : data.phone;
     }
-    if (data.roleId !== undefined) {
-        updateData.roleId = data.roleId === "" ? null : data.roleId;
-    }
-    if (avatar) updateData.avatar = avatar;
 
-    // Update user
+    if (data.roleId !== undefined) {
+        updateData.roleId = data.roleId === "" ? null : Number(data.roleId);
+    }
+
+    if (avatar) {
+        updateData.avatar = avatar;
+    }
+
     return prisma.user.update({
-        where: { id: Number(id) },
+        where: { id: userId },
         data: updateData,
         include: { role: true }
     });
 };
+
 
 export const deleteUserServices = async (id) => {
     const user = await prisma.user.findUnique({

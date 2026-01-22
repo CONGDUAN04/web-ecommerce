@@ -11,13 +11,6 @@ export const updateUserSchema = z.object({
             .trim()
             .optional(),
 
-        address: z
-            .string()
-            .max(255, "Địa chỉ tối đa 255 ký tự")
-            .trim()
-            .optional()
-            .nullable(),
-
         phone: z
             .string()
             .regex(/^(0|\+84)\d{9}$/, "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)")

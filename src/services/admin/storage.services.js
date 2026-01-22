@@ -189,7 +189,7 @@ export const updateStorageServices = async (id, data) => {
 
 export const deleteStorageServices = async (id) => {
     const existStorage = await prisma.storageVariant.findUnique({
-        where: { id },
+        where: { id: +id },
         include: {
             color: { include: { product: true } },
         },

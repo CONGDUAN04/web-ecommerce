@@ -11,7 +11,7 @@ export const getAllDashboard = async (req, res) => {
         console.error('Error fetching dashboard info:', error);
         return res.status(500).json({
             success: false,
-            message: 'Lỗi khi lấy thông tin dashboard'
+            message: 'Lỗi khi lấy thông tin  dashboard'
         });
     }
 }

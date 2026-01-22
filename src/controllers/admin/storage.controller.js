@@ -34,7 +34,7 @@ export const getStorages = async (req, res) => {
             pagination: result.pagination,
         });
     } catch (error) {
-        return res.status(500).json({
+        return res.status(400).json({
             ErrorCode: 1,
             message: error.message,
         });
@@ -43,7 +43,7 @@ export const getStorages = async (req, res) => {
 
 export const getStorageById = async (req, res) => {
     try {
-        const storage = await getStorageByIdServices(req.validated.params.id);
+        const storage = await getStorageByIdServices(+req.validated.params.id);
 
         return res.status(200).json({
             ErrorCode: 0,
@@ -61,7 +61,7 @@ export const getStorageById = async (req, res) => {
 export const updateStorage = async (req, res) => {
     try {
         const storage = await updateStorageServices(
-            req.validated.params.id,
+            +req.validated.params.id,
             req.validated.body
         );
 
@@ -80,7 +80,7 @@ export const updateStorage = async (req, res) => {
 
 export const deleteStorage = async (req, res) => {
     try {
-        await deleteStorageServices(req.validated.params.id);
+        await deleteStorageServices(+req.validated.params.id);
 
         return res.status(200).json({
             ErrorCode: 0,

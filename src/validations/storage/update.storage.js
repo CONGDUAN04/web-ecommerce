@@ -6,11 +6,16 @@ export const updateStorageSchema = z.object({
     body: z.object({
         sku: z
             .string()
+            .trim()
+            .min(1, "SKU không được để trống")
             .min(3, "SKU tối thiểu 3 ký tự")
             .max(50, "SKU tối đa 50 ký tự")
-            .trim()
+            .regex(
+                /^[A-Z0-9\-]+$/,
+                "SKU chỉ được chứa chữ in hoa, số và dấu gạch ngang"
+            )
+            .transform((val) => val.toUpperCase())
             .optional(),
-
         name: z
             .string()
             .min(1, "Tên dung lượng không được để trống")

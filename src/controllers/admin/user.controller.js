@@ -56,8 +56,6 @@ export const getUserById = async (req, res) => {
         });
     }
 };
-
-// UPDATE
 export const updateUser = async (req, res) => {
     try {
         const avatar = req.file?.filename;
@@ -75,8 +73,6 @@ export const updateUser = async (req, res) => {
         });
     }
 };
-
-// DELETE
 export const deleteUser = async (req, res) => {
     try {
         await deleteUserServices(req.validated.params.id);
