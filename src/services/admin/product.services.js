@@ -199,7 +199,7 @@ export const deleteProductServices = async (id) => {
 
         if (!product) throw new Error("Sản phẩm không tồn tại");
 
-        const sold = await tx.orderDetailVariant.findFirst({
+        const sold = await tx.orderItem.findFirst({
             where: {
                 storage: {
                     color: {

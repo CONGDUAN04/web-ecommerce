@@ -52,12 +52,13 @@ export const handleLogin = async (username, password) => {
     });
 
     if (!user) {
-        throw new Error("Tài khoản không tồn tại");
+        throw new Error("Email hoặc mật khẩu không đúng");
     }
 
     const isMatch = await comparePassword(password, user.password);
+
     if (!isMatch) {
-        throw new Error("Mật khẩu không chính xác");
+        throw new Error("Email hoặc mật khẩu không đúng");
     }
 
     const payload = {
@@ -69,10 +70,12 @@ export const handleLogin = async (username, password) => {
 
     const secret = process.env.JWT_SECRET;
     const expiresIn = process.env.JWT_EXPIRES_IN;
+
     const access_token = jwt.sign(payload, secret, { expiresIn });
 
     return access_token;
 };
+
 
 export const getUserById = async (userId) => {
     const user = await prisma.user.findUnique({
