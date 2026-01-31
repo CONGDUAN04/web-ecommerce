@@ -1,33 +1,14 @@
 import {
-    createProductServices,
     getProductsServices,
     getProductByIdServices,
+    createProductServices,
     updateProductServices,
-    deleteProductServices,
+    deleteProductServices
 } from "../../services/admin/product.services.js";
 
-export const createProduct = async (req, res) => {
-    try {
-        const thumbnail = req.file?.filename;
-
-        const product = await createProductServices({
-            ...req.validated.body,
-            thumbnail,
-        });
-
-        return res.status(201).json({
-            ErrorCode: 0,
-            message: "Tạo sản phẩm thành công",
-            data: product,
-        });
-    } catch (error) {
-        return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message,
-        });
-    }
-};
-
+/**
+ * GET /admin/products
+ */
 export const getProducts = async (req, res) => {
     try {
         const products = await getProductsServices(req.validated.query);
@@ -35,16 +16,20 @@ export const getProducts = async (req, res) => {
         return res.status(200).json({
             ErrorCode: 0,
             message: "Lấy danh sách sản phẩm thành công",
-            data: products,
+            data: products.items,
+            pagination: products.pagination
         });
     } catch (error) {
         return res.status(500).json({
             ErrorCode: 1,
-            message: error.message,
+            message: error.message
         });
     }
 };
 
+/**
+ * GET /admin/products/:id
+ */
 export const getProductById = async (req, res) => {
     try {
         const product = await getProductByIdServices(req.validated.params.id);
@@ -52,18 +37,46 @@ export const getProductById = async (req, res) => {
         return res.status(200).json({
             ErrorCode: 0,
             message: "Lấy sản phẩm thành công",
-            data: product,
+            data: product
         });
     } catch (error) {
         return res.status(404).json({
             ErrorCode: 1,
-            message: error.message,
+            message: error.message
         });
     }
 };
 
+/**
+ * POST /admin/products
+ */
+export const createProduct = async (req, res) => {
+    try {
+        const product = await createProductServices({
+            ...req.validated.body,
+            thumbnail: req.file?.filename || null
+        });
+
+        return res.status(201).json({
+            ErrorCode: 0,
+            message: "Tạo sản phẩm thành công",
+            data: product
+        });
+    } catch (error) {
+        return res.status(400).json({
+            ErrorCode: 1,
+            message: error.message
+        });
+    }
+};
+
+/**
+ * PUT /admin/products/:id
+ */
 export const updateProduct = async (req, res) => {
     try {
+        console.log("RAW BODY:", req.body);
+        console.log("VALIDATED BODY:", req.validated.body);
         const product = await updateProductServices(
             req.validated.params.id,
             req.validated.body,
@@ -73,29 +86,31 @@ export const updateProduct = async (req, res) => {
         return res.status(200).json({
             ErrorCode: 0,
             message: "Cập nhật sản phẩm thành công",
-            data: product,
+            data: product
         });
     } catch (error) {
         return res.status(400).json({
             ErrorCode: 1,
-            message: error.message,
+            message: error.message
         });
     }
 };
 
+/**
+ * DELETE /admin/products/:id
+ */
 export const deleteProduct = async (req, res) => {
     try {
-        const result = await deleteProductServices(req.validated.params.id);
+        await deleteProductServices(req.validated.params.id);
 
         return res.status(200).json({
             ErrorCode: 0,
-            message: result.message,
-            type: result.type,
+            message: "Xóa sản phẩm thành công"
         });
     } catch (error) {
         return res.status(400).json({
             ErrorCode: 1,
-            message: error.message,
+            message: error.message
         });
     }
 };

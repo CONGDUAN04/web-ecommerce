@@ -1,9 +1,9 @@
 import express from 'express';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import router from './routes/index.js';
 import authRouter from './routes/api.auth.js';
-
+import userRoutes from './routes/user/index.user.js'
+import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
@@ -22,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 // routes
+app.use("/", userRoutes)
 app.use('/api/admin', router);
 app.use('/api', authRouter);
 

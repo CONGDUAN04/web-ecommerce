@@ -8,11 +8,10 @@ import {
 } from "../controllers/admin/product.controller.js";
 import { uploadSingleFile } from "../middleware/multer.js";
 import { validate } from "../middleware/validate.middleware.js";
-import { createProductSchema } from "../validations/product/create.product.js";
-import { updateProductSchema } from "../validations/product/update.product.js";
 import { paginationSchema } from "../validations/common/query.js";
 import { idParamSchema } from "../validations/common/params.js";
 import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
+import { createProductSchema, updateProductSchema } from "../validations/product/product.schema.js";
 const router = Router();
 router.post(
     "/",

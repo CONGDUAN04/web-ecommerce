@@ -1,84 +1,63 @@
 import {
-    createColorServices,
     getColorsServices,
-    getColorByIdServices,
+    createColorServices,
     updateColorServices,
-    deleteColorServices,
+    deleteColorServices
 } from "../../services/admin/color.services.js";
 
 export const getColors = async (req, res) => {
     try {
-        const result = await getColorsServices(req.validated.query);
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Lấy danh sách màu sản phẩm thành công",
-            data: result,
-        });
-    } catch (error) {
-        return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message,
-        });
-    }
-};
+        const colors = await getColorsServices(req.validated.query);
 
-export const getColorById = async (req, res) => {
-    try {
-        const color = await getColorByIdServices(req.validated.params.id);
-        return res.status(200).json({
+        res.status(200).json({
             ErrorCode: 0,
-            message: "Lấy màu sản phẩm thành công",
-            data: color,
+            message: "Lấy danh sách màu thành công",
+            data: colors
         });
     } catch (error) {
-        return res.status(404).json({
+        res.status(400).json({
             ErrorCode: 1,
-            message: error.message,
+            message: error.message
         });
     }
 };
 
 export const createColor = async (req, res) => {
     try {
-        const image = req.file?.filename;
-
         const color = await createColorServices({
             ...req.validated.body,
-            image,
+            image: req.file?.filename
         });
 
-        return res.status(201).json({
+        res.status(201).json({
             ErrorCode: 0,
-            message: "Tạo màu sản phẩm thành công",
-            data: color,
+            message: "Tạo màu thành công",
+            data: color
         });
     } catch (error) {
-        return res.status(400).json({
+        res.status(400).json({
             ErrorCode: 1,
-            message: error.message,
+            message: error.message
         });
     }
 };
 
 export const updateColor = async (req, res) => {
     try {
-        const image = req.file?.filename;
-
         const color = await updateColorServices(
             req.validated.params.id,
             req.validated.body,
-            image
-        );
+            req.file?.filename);
 
-        return res.status(200).json({
+        res.status(200).json({
             ErrorCode: 0,
-            message: "Cập nhật màu sản phẩm thành công",
-            data: color,
+            message: "Cập nhật màu thành công",
+            data: color
         });
     } catch (error) {
-        return res.status(400).json({
+        res.status(400).json({
             ErrorCode: 1,
-            message: error.message,
+            message: error.message
         });
     }
 };
@@ -86,14 +65,15 @@ export const updateColor = async (req, res) => {
 export const deleteColor = async (req, res) => {
     try {
         await deleteColorServices(req.validated.params.id);
-        return res.status(200).json({
+
+        res.status(200).json({
             ErrorCode: 0,
-            message: "Xóa màu sản phẩm thành công",
+            message: "Xóa màu thành công"
         });
     } catch (error) {
-        return res.status(400).json({
+        res.status(400).json({
             ErrorCode: 1,
-            message: error.message,
+            message: error.message
         });
     }
 };

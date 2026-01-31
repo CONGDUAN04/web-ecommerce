@@ -24,7 +24,7 @@ export const validate = (schema) => async (req, res, next) => {
             });
         }
 
-        req.validated = result.data; // dữ liệu đã clean
+        req.validated = result.data;
         next();
     } catch (error) {
         next(error);

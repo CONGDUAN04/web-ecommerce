@@ -1,139 +1,154 @@
 import prisma from "../../config/client.js";
 
-export const getColorsServices = async ({ page = 1, limit = 10 }) => {
+export const getColorsServices = async ({
+    page = 1,
+    limit = 10,
+    productId
+}) => {
     page = Math.max(1, Number(page));
     limit = Math.min(Math.max(1, Number(limit)), 100);
     const skip = (page - 1) * limit;
 
+    const where = {};
+    if (productId) where.productId = Number(productId);
+
     const [items, total] = await Promise.all([
         prisma.colorVariant.findMany({
-            skip: +skip,
-            take: +limit,
+            where,
+            skip,
+            take: limit,
             orderBy: { id: "desc" },
             include: {
-                product: true,
-            },
+                product: {
+                    include: {
+                        productGroup: true
+                    }
+                }
+            }
         }),
-        prisma.colorVariant.count(),
+        prisma.colorVariant.count({ where })
     ]);
 
     return {
         items,
         pagination: {
-            page: +page,
-            limit: +limit,
+            page,
+            limit,
             total,
-            totalPages: Math.ceil(total / limit),
-        },
+            totalPages: Math.ceil(total / limit)
+        }
     };
 };
 
-export const getColorByIdServices = async (id) => {
-    const color = await prisma.colorVariant.findUnique({
-        where: { id: +id },
-        include: {
-            product: true,
-            storages: true,
-        },
-    });
-    if (!color) throw new Error("Màu sản phẩm không tồn tại");
-    return color;
-};
-
 export const createColorServices = async (data) => {
-    const { color, image, productId } = data;
-
-    if (!image) throw new Error("Vui lòng upload ảnh màu sản phẩm");
+    const { color, price, productId, image } = data;
 
     const product = await prisma.product.findUnique({
-        where: { id: +productId },
+        where: { id: Number(productId) }
     });
+
     if (!product) throw new Error("Sản phẩm không tồn tại");
 
     const existed = await prisma.colorVariant.findFirst({
         where: {
-            color,
-            productId: +productId,
-        },
+            productId: Number(productId),
+            color
+        }
     });
-    if (existed) throw new Error("Màu này đã tồn tại cho sản phẩm");
+
+    if (existed) throw new Error("Màu đã tồn tại");
 
     return prisma.colorVariant.create({
         data: {
             color,
+            price: Number(price),
+            quantity: 0,
             image,
-            productId: +productId,
-        },
+            productId: Number(productId)
+        }
     });
 };
 
 export const updateColorServices = async (id, data, image) => {
-    const existColor = await prisma.colorVariant.findUnique({
-        where: { id: +id },
+    id = Number(id);
+    const color = await prisma.colorVariant.findUnique({
+        where: { id }
     });
-    if (!existColor) throw new Error("Màu sản phẩm không tồn tại");
+    if (!color) throw new Error("Color không tồn tại");
 
-    if (data.color) {
-        const duplicate = await prisma.colorVariant.findFirst({
-            where: {
-                color: data.color,
-                productId: data.productId
-                    ? +data.productId
-                    : existColor.productId,
-                NOT: { id: +id },
-            },
-        });
-        if (duplicate) throw new Error("Màu này đã tồn tại cho sản phẩm");
+    const updateData = {};
+
+    if (data.color !== undefined) updateData.color = data.color;
+    if (data.price !== undefined) updateData.price = Number(data.price);
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (image) updateData.image = image;
+
+    if (data.quantity !== undefined) {
+        throw new Error("Không cho phép update quantity trực tiếp");
     }
-
     return prisma.colorVariant.update({
-        where: { id: +id },
-        data: {
-            ...data,
-            ...(image && { image }),
-        },
+        where: { id },
+        data: updateData
     });
 };
-
 
 export const deleteColorServices = async (id) => {
-    const colorId = Number(id);
+    id = Number(id);
 
-    const color = await prisma.colorVariant.findUnique({
-        where: { id: colorId },
-    });
+    return prisma.$transaction(async (tx) => {
 
-    if (!color) {
-        throw new Error("Màu sản phẩm không tồn tại");
-    }
-
-    const orderCount = await prisma.orderDetailVariant.count({
-        where: {
-            storage: {
-                colorId: colorId,
-            },
-        },
-    });
-
-    if (orderCount > 0) {
-        throw new Error(
-            "Màu sản phẩm đã phát sinh đơn hàng, không thể xóa"
-        );
-    }
-    await prisma.$transaction(async (tx) => {
-        await tx.storageVariant.deleteMany({
-            where: {
-                colorId: colorId,
-            },
+        const color = await tx.colorVariant.findUnique({
+            where: { id },
+            include: {
+                orderItems: { take: 1 }
+            }
         });
+
+        if (!color) throw new Error("Color không tồn tại");
+
+        if (color.orderItems.length > 0) {
+            return tx.colorVariant.update({
+                where: { id },
+                data: { isActive: false }
+            });
+        }
+
+        if (color.quantity > 0) {
+            await tx.inventoryLog.create({
+                data: {
+                    action: "EXPORT",
+                    quantity: color.quantity,
+                    colorId: id,
+                    note: "Delete variant"
+                }
+            });
+        }
+
+        // xoá cart trước
+        await tx.cartItem.deleteMany({
+            where: { colorId: id }
+        });
+
+        // xoá variant
         await tx.colorVariant.delete({
-            where: {
-                id: colorId,
-            },
+            where: { id }
         });
+
+        // cập nhật lại tổng quantity product
+        const sum = await tx.colorVariant.aggregate({
+            where: { productId: color.productId },
+            _sum: { quantity: true }
+        });
+
+        await tx.product.update({
+            where: { id: color.productId },
+            data: {
+                quantity: sum._sum.quantity ?? 0
+            }
+        });
+
+        return true;
     });
 };
-
-
 
 
