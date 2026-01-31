@@ -78,13 +78,25 @@ export const updateBrandServices = async (id, data, image) => {
 };
 
 export const deleteBrandServices = async (id) => {
+    id = Number(id);
+
     const brand = await prisma.brand.findUnique({
-        where: { id: Number(id) },
+        where: { id },
     });
+
     if (!brand) throw new Error("Thương hiệu không tồn tại");
 
+    const groupCount = await prisma.productGroup.count({
+        where: { brandId: id },
+    });
+
+
+    if (groupCount > 0) {
+        throw new Error("Thương hiệu đang được sử dụng, không thể xóa");
+    }
+
     await prisma.brand.delete({
-        where: { id: Number(id) },
+        where: { id },
     });
 
     return true;

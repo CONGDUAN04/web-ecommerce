@@ -81,13 +81,24 @@ export const updateCategoryServices = async (id, data, image) => {
 };
 
 export const deleteCategoryServices = async (id) => {
+    id = Number(id);
+
     const exist = await prisma.category.findUnique({
-        where: { id: Number(id) }
+        where: { id }
     });
+
     if (!exist) throw new Error("Danh mục không tồn tại");
 
+    const used = await prisma.productGroup.count({
+        where: { categoryId: id }
+    });
+
+    if (used > 0) {
+        throw new Error("Danh mục đang chứa sản phẩm, không thể xóa");
+    }
+
     await prisma.category.delete({
-        where: { id: Number(id) }
+        where: { id }
     });
 
     return true;

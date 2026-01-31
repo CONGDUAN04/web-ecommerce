@@ -10,9 +10,8 @@ import { uploadSingleFile } from "../middleware/multer.js";
 import { validate } from "../middleware/validate.middleware.js";
 import { paginationSchema } from "../validations/common/query.js";
 import { idParamSchema } from "../validations/common/params.js";
-import { createBrandSchema } from "../validations/brand/create.brand.js";
-import { updateBrandSchema } from "../validations/brand/update.brand.js";
 import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
+import { createBrandSchema, updateBrandSchema } from "../validations/brand/brand.schema.js";
 
 const router = Router();
 

@@ -10,9 +10,8 @@ import {
 import { uploadSingleFile } from "../middleware/multer.js";
 import { idParamSchema } from "../validations/common/params.js";
 import { paginationSchema } from "../validations/common/query.js";
-import { updateUserSchema } from "../validations/user/update.user.js";
-import { createUserSchema } from "../validations/user/create.user.js";
 import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
+import { createUserSchema, updateUserSchema } from "../validations/user/user.schema.js";
 
 const router = express.Router();
 
