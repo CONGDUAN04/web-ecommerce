@@ -6,12 +6,17 @@ import {
     updateBrand,
     deleteBrand
 } from "../controllers/admin/brand.controller.js";
+
 import { uploadSingleFile } from "../middleware/multer.js";
 import { validate } from "../middleware/validate.middleware.js";
 import { paginationSchema } from "../validations/common/query.js";
 import { idParamSchema } from "../validations/common/params.js";
 import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
-import { createBrandSchema, updateBrandSchema } from "../validations/brand/brand.schema.js";
+
+import {
+    createBrandSchema,
+    updateBrandSchema
+} from "../validations/brand/brand.schema.js";
 
 const router = Router();
 
@@ -30,6 +35,7 @@ router.post(
 router.put(
     "/:id",
     uploadSingleFile("image", "images/brand"),
+    uploadErrorHandler,
     validate(updateBrandSchema),
     updateBrand
 );

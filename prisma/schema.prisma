@@ -155,6 +155,8 @@ model ProductGroup {
   updatedAt DateTime @updatedAt
 
   @@index([isActive])
+  @@index([categoryId])
+  @@index([brandId])
   @@map("product_groups")
 }
 
@@ -181,6 +183,7 @@ model Product {
 
   @@unique([productGroupId, name])
   @@index([isActive])
+  @@index([productGroupId, isActive])
   @@map("products")
 }
 
@@ -249,6 +252,7 @@ model Variant {
   updatedAt DateTime @updatedAt
 
   @@index([productId])
+  @@index([productId, isActive])
   @@map("variants")
 }
 
@@ -295,6 +299,7 @@ model CartItem {
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@unique([cartId, variantId])
+  @@index([cartId])
   @@map("cart_items")
 }
 
@@ -331,6 +336,9 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
   @@map("orders")
 }
 
@@ -345,6 +353,8 @@ model OrderItem {
   order   Order   @relation(fields: [orderId], references: [id])
   variant Variant @relation(fields: [variantId], references: [id])
 
+  @@index([orderId])
+  @@index([variantId])
   @@map("order_items")
 }
 
@@ -365,6 +375,7 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([orderId])
   @@map("payments")
 }
 
@@ -381,6 +392,7 @@ model OrderLog {
   orderId Int
   order   Order @relation(fields: [orderId], references: [id])
 
+  @@index([orderId])
   @@map("order_logs")
 }
 
@@ -394,6 +406,7 @@ model InventoryLog {
   variantId Int
   variant   Variant @relation(fields: [variantId], references: [id])
 
+  @@index([variantId])
   @@map("inventory_logs")
 }
 
@@ -413,6 +426,7 @@ model Review {
   user    User    @relation(fields: [userId], references: [id])
 
   @@unique([userId, productId])
+  @@index([productId])
   @@map("reviews")
 }
 
@@ -426,6 +440,7 @@ model Wishlist {
   product Product @relation(fields: [productId], references: [id])
 
   @@unique([userId, productId])
+  @@index([userId])
   @@map("wishlists")
 }
 
@@ -440,6 +455,7 @@ model ProductImage {
   productId Int
   product   Product @relation(fields: [productId], references: [id])
 
+  @@index([productId])
   @@map("product_images")
 }
 
@@ -451,6 +467,7 @@ model Specification {
   productId Int
   product   Product @relation(fields: [productId], references: [id])
 
+  @@index([productId])
   @@map("specifications")
 }
 
@@ -464,6 +481,7 @@ model Address {
   userId Int
   user   User @relation(fields: [userId], references: [id])
 
+  @@index([userId])
   @@map("addresses")
 }
 
@@ -484,6 +502,7 @@ model Voucher {
 
   orders Order[]
 
+  @@index([startDate, endDate])
   @@map("vouchers")
 }
 
