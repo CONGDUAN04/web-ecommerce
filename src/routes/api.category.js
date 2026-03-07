@@ -7,16 +7,22 @@ import {
     deleteCategory,
     getCategoryTree
 } from "../controllers/admin/category.controller.js";
+
 import { uploadSingleFile } from "../middleware/multer.js";
 import { validate } from "../middleware/validate.middleware.js";
 import { paginationSchema } from "../validations/common/query.js";
 import { idParamSchema } from "../validations/common/params.js";
 import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
-import { createCategorySchema, updateCategorySchema } from "../validations/category/category.schema.js";
+
+import {
+    createCategorySchema,
+    updateCategorySchema
+} from "../validations/category/category.schema.js";
 
 const router = Router();
 
 router.get("/", validate(paginationSchema), getCategories);
+
 router.get("/tree", getCategoryTree);
 
 router.get("/:id", validate(idParamSchema), getCategoryById);

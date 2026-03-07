@@ -2,7 +2,9 @@ import { z } from "zod";
 import { idParam } from "../common/params.js";
 
 export const createCategorySchema = z.object({
+
     body: z.object({
+
         name: z
             .string()
             .min(1, "Tên danh mục không được để trống")
@@ -20,14 +22,17 @@ export const createCategorySchema = z.object({
             .int()
             .positive()
             .optional()
-            .nullable(),
-    }),
+            .nullable()
+
+    })
 });
 
 export const updateCategorySchema = z.object({
+
     params: idParam,
 
     body: z.object({
+
         name: z
             .string()
             .min(1, "Tên danh mục không được để trống")
@@ -46,6 +51,7 @@ export const updateCategorySchema = z.object({
             .int()
             .positive()
             .optional()
-            .nullable(),
-    }),
+            .nullable()
+
+    })
 });
