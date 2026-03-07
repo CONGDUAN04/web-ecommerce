@@ -4,37 +4,46 @@ export const getHomeProductsService = async () => {
     const products = await prisma.product.findMany({
         where: {
             isActive: true,
-            deletedAt: null,
         },
+        orderBy: {
+            id: "desc",
+        },
+        distinct: ["productGroupId"], // ⭐ chỉ 1 product / group
         take: 8,
-        orderBy: { id: "desc" },
         select: {
             id: true,
             name: true,
             slug: true,
             thumbnail: true,
+
+            productGroup: {
+                select: {
+                    name: true,
+                },
+            },
+
             colors: {
                 select: {
-                    storages: {
-                        where: { quantity: { gt: 0 } },
-                        select: { price: true },
-                    },
+                    price: true,
+                },
+                where: {
+                    quantity: { gt: 0 },
                 },
             },
         },
     });
 
-    return products.map((product) => {
-        const prices = product.colors.flatMap((color) =>
-            color.storages.map((storage) => storage.price)
-        );
+    return products.map((p) => {
+        const prices = p.colors.map((c) => c.price);
 
         return {
-            id: product.id,
-            name: product.name,
-            slug: product.slug,
-            thumbnail: product.thumbnail,
+            id: p.id,
+            name: p.name,
+            groupName: p.productGroup?.name,
+            slug: p.slug,
+            thumbnail: p.thumbnail,
             price: prices.length ? Math.min(...prices) : 0,
         };
     });
 };
+

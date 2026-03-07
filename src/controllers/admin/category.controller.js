@@ -3,7 +3,8 @@ import {
     getCategoryByIdServices,
     updateCategoryServices,
     deleteCategoryServices,
-    createCategoryServices
+    createCategoryServices,
+    getCategoryTreeServices
 } from "../../services/admin/category.services.js";
 
 export const getCategories = async (req, res) => {
@@ -45,7 +46,7 @@ export const createCategory = async (req, res) => {
     try {
         const category = await createCategoryServices({
             ...req.validated.body,
-            image: req.file?.filename
+            image: req.file?.filename || null
         });
 
         return res.status(201).json({
@@ -65,8 +66,10 @@ export const updateCategory = async (req, res) => {
     try {
         const category = await updateCategoryServices(
             req.validated.params.id,
-            req.validated.body,
-            req.file?.filename
+            {
+                ...req.validated.body,
+                image: req.file?.filename
+            }
         );
 
         return res.status(200).json({
@@ -97,3 +100,19 @@ export const deleteCategory = async (req, res) => {
         });
     }
 };
+export const getCategoryTree = async (req, res) => {
+    try {
+        const tree = await getCategoryTreeServices();
+
+        return res.status(200).json({
+            ErrorCode: 0,
+            data: tree
+        });
+    } catch (error) {
+        return res.status(500).json({
+            ErrorCode: 1,
+            message: error.message
+        });
+    }
+};
+

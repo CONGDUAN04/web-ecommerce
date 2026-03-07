@@ -1,3 +1,157 @@
+/*
+  Warnings:
+
+  - You are about to drop the `address` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `brand` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `cart` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `cartitem` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `category` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `inventorylog` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `order` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `orderitem` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `orderlog` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `payment` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `product` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `productgroup` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `productimage` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `review` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `role` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `specification` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `user` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `variant` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `voucher` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `wishlist` table. If the table is not empty, all the data it contains will be lost.
+
+*/
+-- DropForeignKey
+ALTER TABLE `address` DROP FOREIGN KEY `Address_userId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `cart` DROP FOREIGN KEY `Cart_userId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `cartitem` DROP FOREIGN KEY `CartItem_cartId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `cartitem` DROP FOREIGN KEY `CartItem_variantId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `category` DROP FOREIGN KEY `Category_parentId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `inventorylog` DROP FOREIGN KEY `InventoryLog_variantId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `order` DROP FOREIGN KEY `Order_userId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `order` DROP FOREIGN KEY `Order_voucherId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `orderitem` DROP FOREIGN KEY `OrderItem_orderId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `orderitem` DROP FOREIGN KEY `OrderItem_variantId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `orderlog` DROP FOREIGN KEY `OrderLog_orderId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `payment` DROP FOREIGN KEY `Payment_orderId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `product` DROP FOREIGN KEY `Product_productGroupId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `productgroup` DROP FOREIGN KEY `ProductGroup_brandId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `productgroup` DROP FOREIGN KEY `ProductGroup_categoryId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `productimage` DROP FOREIGN KEY `ProductImage_productId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `review` DROP FOREIGN KEY `Review_productId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `review` DROP FOREIGN KEY `Review_userId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `specification` DROP FOREIGN KEY `Specification_productId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `user` DROP FOREIGN KEY `User_roleId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `variant` DROP FOREIGN KEY `Variant_productId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `wishlist` DROP FOREIGN KEY `Wishlist_productId_fkey`;
+
+-- DropForeignKey
+ALTER TABLE `wishlist` DROP FOREIGN KEY `Wishlist_userId_fkey`;
+
+-- DropTable
+DROP TABLE `address`;
+
+-- DropTable
+DROP TABLE `brand`;
+
+-- DropTable
+DROP TABLE `cart`;
+
+-- DropTable
+DROP TABLE `cartitem`;
+
+-- DropTable
+DROP TABLE `category`;
+
+-- DropTable
+DROP TABLE `inventorylog`;
+
+-- DropTable
+DROP TABLE `order`;
+
+-- DropTable
+DROP TABLE `orderitem`;
+
+-- DropTable
+DROP TABLE `orderlog`;
+
+-- DropTable
+DROP TABLE `payment`;
+
+-- DropTable
+DROP TABLE `product`;
+
+-- DropTable
+DROP TABLE `productgroup`;
+
+-- DropTable
+DROP TABLE `productimage`;
+
+-- DropTable
+DROP TABLE `review`;
+
+-- DropTable
+DROP TABLE `role`;
+
+-- DropTable
+DROP TABLE `specification`;
+
+-- DropTable
+DROP TABLE `user`;
+
+-- DropTable
+DROP TABLE `variant`;
+
+-- DropTable
+DROP TABLE `voucher`;
+
+-- DropTable
+DROP TABLE `wishlist`;
+
 -- CreateTable
 CREATE TABLE `roles` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
@@ -32,7 +186,8 @@ CREATE TABLE `categories` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(191) NOT NULL,
     `image` VARCHAR(191) NULL,
-    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `description` VARCHAR(191) NULL,
+    `parentId` INTEGER NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -59,6 +214,7 @@ CREATE TABLE `product_groups` (
     `slug` VARCHAR(191) NOT NULL,
     `brandId` INTEGER NOT NULL,
     `categoryId` INTEGER NOT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -80,23 +236,24 @@ CREATE TABLE `products` (
     `productGroupId` INTEGER NOT NULL,
 
     UNIQUE INDEX `products_slug_key`(`slug`),
+    UNIQUE INDEX `products_productGroupId_name_key`(`productGroupId`, `name`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `color_variants` (
+CREATE TABLE `variants` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `color` VARCHAR(191) NOT NULL,
-    `image` VARCHAR(191) NULL,
+    `variantKey` VARCHAR(191) NOT NULL,
+    `variantValue` VARCHAR(191) NOT NULL,
     `price` INTEGER NOT NULL,
     `quantity` INTEGER NOT NULL DEFAULT 0,
     `sold` INTEGER NOT NULL DEFAULT 0,
     `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `productId` INTEGER NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
-    `productId` INTEGER NOT NULL,
 
-    UNIQUE INDEX `color_variants_productId_color_key`(`productId`, `color`),
+    UNIQUE INDEX `variants_productId_variantKey_variantValue_key`(`productId`, `variantKey`, `variantValue`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -118,9 +275,9 @@ CREATE TABLE `cart_items` (
     `price` INTEGER NOT NULL,
     `quantity` INTEGER NOT NULL,
     `cartId` INTEGER NOT NULL,
-    `colorId` INTEGER NOT NULL,
+    `variantId` INTEGER NOT NULL,
 
-    UNIQUE INDEX `cart_items_cartId_colorId_key`(`cartId`, `colorId`),
+    UNIQUE INDEX `cart_items_cartId_variantId_key`(`cartId`, `variantId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -151,7 +308,7 @@ CREATE TABLE `order_items` (
     `price` INTEGER NOT NULL,
     `quantity` INTEGER NOT NULL,
     `orderId` INTEGER NOT NULL,
-    `colorId` INTEGER NOT NULL,
+    `variantId` INTEGER NOT NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -188,7 +345,7 @@ CREATE TABLE `inventory_logs` (
     `quantity` INTEGER NOT NULL,
     `note` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `colorId` INTEGER NOT NULL,
+    `variantId` INTEGER NOT NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -264,37 +421,11 @@ CREATE TABLE `addresses` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
-CREATE TABLE `banners` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `title` VARCHAR(191) NULL,
-    `image` VARCHAR(191) NOT NULL,
-    `link` VARCHAR(191) NULL,
-    `isActive` BOOLEAN NOT NULL DEFAULT true,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    INDEX `banners_isActive_idx`(`isActive`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `sliders` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `image` VARCHAR(191) NOT NULL,
-    `title` VARCHAR(191) NULL,
-    `subTitle` VARCHAR(191) NULL,
-    `link` VARCHAR(191) NULL,
-    `sortOrder` INTEGER NOT NULL DEFAULT 0,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    INDEX `sliders_sortOrder_idx`(`sortOrder`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
 -- AddForeignKey
 ALTER TABLE `users` ADD CONSTRAINT `users_roleId_fkey` FOREIGN KEY (`roleId`) REFERENCES `roles`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `categories` ADD CONSTRAINT `categories_parentId_fkey` FOREIGN KEY (`parentId`) REFERENCES `categories`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `product_groups` ADD CONSTRAINT `product_groups_brandId_fkey` FOREIGN KEY (`brandId`) REFERENCES `brands`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -306,7 +437,7 @@ ALTER TABLE `product_groups` ADD CONSTRAINT `product_groups_categoryId_fkey` FOR
 ALTER TABLE `products` ADD CONSTRAINT `products_productGroupId_fkey` FOREIGN KEY (`productGroupId`) REFERENCES `product_groups`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `color_variants` ADD CONSTRAINT `color_variants_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `variants` ADD CONSTRAINT `variants_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `carts` ADD CONSTRAINT `carts_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -315,7 +446,7 @@ ALTER TABLE `carts` ADD CONSTRAINT `carts_userId_fkey` FOREIGN KEY (`userId`) RE
 ALTER TABLE `cart_items` ADD CONSTRAINT `cart_items_cartId_fkey` FOREIGN KEY (`cartId`) REFERENCES `carts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `cart_items` ADD CONSTRAINT `cart_items_colorId_fkey` FOREIGN KEY (`colorId`) REFERENCES `color_variants`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `cart_items` ADD CONSTRAINT `cart_items_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `variants`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `orders` ADD CONSTRAINT `orders_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -327,7 +458,7 @@ ALTER TABLE `orders` ADD CONSTRAINT `orders_voucherId_fkey` FOREIGN KEY (`vouche
 ALTER TABLE `order_items` ADD CONSTRAINT `order_items_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `orders`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `order_items` ADD CONSTRAINT `order_items_colorId_fkey` FOREIGN KEY (`colorId`) REFERENCES `color_variants`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `order_items` ADD CONSTRAINT `order_items_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `variants`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `payments` ADD CONSTRAINT `payments_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `orders`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -336,7 +467,7 @@ ALTER TABLE `payments` ADD CONSTRAINT `payments_orderId_fkey` FOREIGN KEY (`orde
 ALTER TABLE `order_logs` ADD CONSTRAINT `order_logs_orderId_fkey` FOREIGN KEY (`orderId`) REFERENCES `orders`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `inventory_logs` ADD CONSTRAINT `inventory_logs_colorId_fkey` FOREIGN KEY (`colorId`) REFERENCES `color_variants`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `inventory_logs` ADD CONSTRAINT `inventory_logs_variantId_fkey` FOREIGN KEY (`variantId`) REFERENCES `variants`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `reviews` ADD CONSTRAINT `reviews_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `products`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

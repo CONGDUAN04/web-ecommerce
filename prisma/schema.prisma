@@ -4,13 +4,12 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  // url      = env("DATABASE_URL")
+  // url = env("DATABASE_URL")
 }
 
-/**
- * bran
- * ===================== ENUM =====================
- */
+//////////////////////////////////////////////////////
+// ENUM
+//////////////////////////////////////////////////////
 
 enum AccountType {
   SYSTEM
@@ -63,9 +62,9 @@ enum InventoryAction {
   ADJUST
 }
 
-/**
- * ===================== AUTH =====================
- */
+//////////////////////////////////////////////////////
+// AUTH
+//////////////////////////////////////////////////////
 
 model Role {
   id          Int      @id @default(autoincrement())
@@ -103,19 +102,25 @@ model User {
   @@map("users")
 }
 
-/**
- * ===================== PRODUCT =====================
- */
+//////////////////////////////////////////////////////
+// PRODUCT
+//////////////////////////////////////////////////////
 
 model Category {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
   image       String?
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  parentId Int?
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
 
   productGroups ProductGroup[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("categories")
 }
@@ -149,6 +154,7 @@ model ProductGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([isActive])
   @@map("product_groups")
 }
 
@@ -159,8 +165,6 @@ model Product {
   description String?
   thumbnail   String?
 
-  quantity Int @default(0)
-
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -168,48 +172,104 @@ model Product {
   productGroupId Int
   productGroup   ProductGroup @relation(fields: [productGroupId], references: [id])
 
-  colors         ColorVariant[]
+  variants       Variant[]
   reviews        Review[]
   wishlists      Wishlist[]
   images         ProductImage[]
   specifications Specification[]
+  attributes     ProductAttribute[]
 
   @@unique([productGroupId, name])
+  @@index([isActive])
   @@map("products")
 }
 
-/**
- * ===================== VARIANT (SELL UNIT) =====================
- */
+//////////////////////////////////////////////////////
+// ATTRIBUTE SYSTEM (LINH HOẠT BIẾN THỂ)
+//////////////////////////////////////////////////////
 
-model ColorVariant {
-  id    Int     @id @default(autoincrement())
-  color String
-  image String?
+model Attribute {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  values   AttributeValue[]
+  products ProductAttribute[]
+
+  @@map("attributes")
+}
+
+model AttributeValue {
+  id    Int    @id @default(autoincrement())
+  value String
+
+  attributeId Int
+  attribute   Attribute @relation(fields: [attributeId], references: [id])
+
+  variants VariantAttribute[]
+
+  @@map("attribute_values")
+}
+
+model ProductAttribute {
+  productId   Int
+  attributeId Int
+
+  product   Product   @relation(fields: [productId], references: [id])
+  attribute Attribute @relation(fields: [attributeId], references: [id])
+
+  @@id([productId, attributeId])
+  @@map("product_attributes")
+}
+
+//////////////////////////////////////////////////////
+// VARIANT (SKU THẬT)
+//////////////////////////////////////////////////////
+
+model Variant {
+  id Int @id @default(autoincrement())
+
+  sku String @unique
 
   price    Int
   quantity Int @default(0)
   sold     Int @default(0)
 
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive Boolean @default(true)
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  attributes VariantAttribute[]
 
   cartItems     CartItem[]
   orderItems    OrderItem[]
   inventoryLogs InventoryLog[]
 
-  @@unique([productId, color])
-  @@map("color_variants")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("variants")
 }
+
+model VariantAttribute {
+  variantId Int
+  valueId   Int
+
+  variant Variant        @relation(fields: [variantId], references: [id])
+  value   AttributeValue @relation(fields: [valueId], references: [id])
+
+  @@id([variantId, valueId])
+  @@map("variant_attributes")
+}
+
+//////////////////////////////////////////////////////
+// CART
+//////////////////////////////////////////////////////
 
 model Cart {
   id Int @id @default(autoincrement())
 
-  /// CACHE: SUM(cartItems.price * quantity)
   sum Int @default(0)
 
   userId Int  @unique
@@ -228,19 +288,19 @@ model CartItem {
   price    Int
   quantity Int
 
-  cartId  Int
-  colorId Int
+  cartId    Int
+  variantId Int
 
-  cart  Cart         @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  color ColorVariant @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  @@unique([cartId, colorId])
+  @@unique([cartId, variantId])
   @@map("cart_items")
 }
 
-/**
- * ===================== ORDER =====================
- */
+//////////////////////////////////////////////////////
+// ORDER
+//////////////////////////////////////////////////////
 
 model Order {
   id Int @id @default(autoincrement())
@@ -279,18 +339,18 @@ model OrderItem {
   price    Int
   quantity Int
 
-  orderId Int
-  colorId Int
+  orderId   Int
+  variantId Int
 
-  order Order        @relation(fields: [orderId], references: [id])
-  color ColorVariant @relation(fields: [colorId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
+  variant Variant @relation(fields: [variantId], references: [id])
 
   @@map("order_items")
 }
 
-/**
- * ===================== PAYMENT =====================
- */
+//////////////////////////////////////////////////////
+// PAYMENT
+//////////////////////////////////////////////////////
 
 model Payment {
   id       Int             @id @default(autoincrement())
@@ -308,9 +368,9 @@ model Payment {
   @@map("payments")
 }
 
-/**
- * ===================== LOG =====================
- */
+//////////////////////////////////////////////////////
+// LOG
+//////////////////////////////////////////////////////
 
 model OrderLog {
   id        Int         @id @default(autoincrement())
@@ -331,11 +391,15 @@ model InventoryLog {
   note      String?
   createdAt DateTime        @default(now())
 
-  colorId Int
-  color   ColorVariant @relation(fields: [colorId], references: [id])
+  variantId Int
+  variant   Variant @relation(fields: [variantId], references: [id])
 
   @@map("inventory_logs")
 }
+
+//////////////////////////////////////////////////////
+// REVIEW + WISHLIST
+//////////////////////////////////////////////////////
 
 model Review {
   id      Int     @id @default(autoincrement())
@@ -352,26 +416,6 @@ model Review {
   @@map("reviews")
 }
 
-model Voucher {
-  id            Int         @id @default(autoincrement())
-  code          String      @unique
-  type          VoucherType
-  discount      Int
-  maxDiscount   Int?
-  minOrderValue Int?
-
-  startDate  DateTime
-  endDate    DateTime
-  usageLimit Int?
-  usedCount  Int      @default(0)
-
-  isActive Boolean @default(true)
-
-  orders Order[]
-
-  @@map("vouchers")
-}
-
 model Wishlist {
   id Int @id @default(autoincrement())
 
@@ -384,6 +428,10 @@ model Wishlist {
   @@unique([userId, productId])
   @@map("wishlists")
 }
+
+//////////////////////////////////////////////////////
+// OTHER
+//////////////////////////////////////////////////////
 
 model ProductImage {
   id       Int    @id @default(autoincrement())
@@ -417,6 +465,26 @@ model Address {
   user   User @relation(fields: [userId], references: [id])
 
   @@map("addresses")
+}
+
+model Voucher {
+  id            Int         @id @default(autoincrement())
+  code          String      @unique
+  type          VoucherType
+  discount      Int
+  maxDiscount   Int?
+  minOrderValue Int?
+
+  startDate  DateTime
+  endDate    DateTime
+  usageLimit Int?
+  usedCount  Int      @default(0)
+
+  isActive Boolean @default(true)
+
+  orders Order[]
+
+  @@map("vouchers")
 }
 
 model Banner {

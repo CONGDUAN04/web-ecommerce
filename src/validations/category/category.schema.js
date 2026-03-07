@@ -1,5 +1,6 @@
+import { z } from "zod";
 import { idParam } from "../common/params.js";
-import { z } from "zod"
+
 export const createCategorySchema = z.object({
     body: z.object({
         name: z
@@ -13,13 +14,19 @@ export const createCategorySchema = z.object({
             .max(500, "Mô tả tối đa 500 ký tự")
             .trim()
             .optional(),
+
+        parentId: z
+            .coerce.number()
+            .int()
+            .positive()
+            .optional()
+            .nullable(),
     }),
-    params: z.object({}).optional(),
-    query: z.object({}).optional(),
 });
 
 export const updateCategorySchema = z.object({
     params: idParam,
+
     body: z.object({
         name: z
             .string()
@@ -33,5 +40,12 @@ export const updateCategorySchema = z.object({
             .max(500, "Mô tả tối đa 500 ký tự")
             .trim()
             .optional(),
-    })
+
+        parentId: z
+            .coerce.number()
+            .int()
+            .positive()
+            .optional()
+            .nullable(),
+    }),
 });

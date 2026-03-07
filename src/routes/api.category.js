@@ -4,7 +4,8 @@ import {
     getCategoryById,
     createCategory,
     updateCategory,
-    deleteCategory
+    deleteCategory,
+    getCategoryTree
 } from "../controllers/admin/category.controller.js";
 import { uploadSingleFile } from "../middleware/multer.js";
 import { validate } from "../middleware/validate.middleware.js";
@@ -16,6 +17,7 @@ import { createCategorySchema, updateCategorySchema } from "../validations/categ
 const router = Router();
 
 router.get("/", validate(paginationSchema), getCategories);
+router.get("/tree", getCategoryTree);
 
 router.get("/:id", validate(idParamSchema), getCategoryById);
 

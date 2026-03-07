@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `product_groups` ADD COLUMN `isActive` BOOLEAN NOT NULL DEFAULT true;
