@@ -1,9 +1,18 @@
 import { Router } from "express";
-import { createProductGroup, deleteProductGroup, getProductGroupById, getProductGroups, updateProductGroup } from "../controllers/admin/productGroup.controller.js";
-import { paginationSchema } from "../validations/common/query.js";
+import {
+    createProductGroup,
+    deleteProductGroup,
+    getProductGroupById,
+    getProductGroups,
+    updateProductGroup
+} from "../controllers/admin/productGroup.controller.js";
+
 import { validate } from "../middleware/validate.middleware.js";
+import { paginationSchema } from "../validations/common/query.js";
 import { idParamSchema } from "../validations/common/params.js";
 import { createProductGroupSchema, updateProductGroupSchema } from "../validations/productGroup/productGroup.schema.js";
+
+
 const router = Router();
 
 router.get("/", validate(paginationSchema), getProductGroups);

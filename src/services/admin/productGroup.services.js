@@ -4,27 +4,28 @@ import { slugify } from "../../utils/slugify.js";
 export const getProductGroupsServices = async ({ page = 1, limit = 10 }) => {
     page = Math.max(1, Number(page));
     limit = Math.min(Math.max(1, Number(limit)), 100);
+
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
         prisma.productGroup.findMany({
+            where: { isActive: true },
+
             skip,
             take: limit,
+
             orderBy: { id: "desc" },
+
             include: {
                 brand: true,
                 category: true,
-                products: {
-                    select: {
-                        id: true,
-                        name: true,
-                        quantity: true,
-                        isActive: true
-                    }
-                }
+                products: true
             }
         }),
-        prisma.productGroup.count()
+
+        prisma.productGroup.count({
+            where: { isActive: true }
+        })
     ]);
 
     return {
@@ -41,6 +42,7 @@ export const getProductGroupsServices = async ({ page = 1, limit = 10 }) => {
 export const getProductGroupByIdServices = async (id) => {
     const productGroup = await prisma.productGroup.findUnique({
         where: { id: Number(id) },
+
         include: {
             brand: true,
             category: true,
@@ -48,19 +50,38 @@ export const getProductGroupByIdServices = async (id) => {
         }
     });
 
-    if (!productGroup) throw new Error("Nhóm sản phẩm không tồn tại");
+    if (!productGroup) {
+        throw new Error("Product group không tồn tại");
+    }
+
     return productGroup;
 };
 
 export const createProductGroupServices = async (data) => {
     const slug = slugify(data.name);
 
-    const existed = await prisma.productGroup.findFirst({
+    const exist = await prisma.productGroup.findUnique({
         where: { slug }
     });
 
-    if (existed) {
-        throw new Error("Nhóm sản phẩm đã tồn tại");
+    if (exist) {
+        throw new Error("Product group đã tồn tại");
+    }
+
+    const brand = await prisma.brand.findUnique({
+        where: { id: Number(data.brandId) }
+    });
+
+    if (!brand) {
+        throw new Error("Brand không tồn tại");
+    }
+
+    const category = await prisma.category.findUnique({
+        where: { id: Number(data.categoryId) }
+    });
+
+    if (!category) {
+        throw new Error("Category không tồn tại");
     }
 
     return prisma.productGroup.create({
@@ -69,28 +90,32 @@ export const createProductGroupServices = async (data) => {
             slug,
             brandId: Number(data.brandId),
             categoryId: Number(data.categoryId),
+            description: data.description,
+            thumbnail: data.thumbnail
         }
     });
 };
 
-
 export const updateProductGroupServices = async (id, data) => {
+    id = Number(id);
+
     const exist = await prisma.productGroup.findUnique({
-        where: { id: Number(id) }
+        where: { id }
     });
 
     if (!exist) {
-        throw new Error("Nhóm sản phẩm không tồn tại");
+        throw new Error("Product group không tồn tại");
     }
 
     const updateData = {};
 
-    if (data.name !== undefined && data.name !== null) {
-        const newSlug = slugify(data.name);
+    if (data.name) {
+        const slug = slugify(data.name);
+
         const duplicated = await prisma.productGroup.findFirst({
             where: {
-                slug: newSlug,
-                NOT: { id: Number(id) }
+                slug,
+                NOT: { id }
             }
         });
 
@@ -99,28 +124,33 @@ export const updateProductGroupServices = async (id, data) => {
         }
 
         updateData.name = data.name;
-        updateData.slug = newSlug;
+        updateData.slug = slug;
     }
 
-    if (data.brandId !== undefined && data.brandId !== null) {
+    if (data.brandId) {
         updateData.brandId = Number(data.brandId);
     }
 
-    if (data.categoryId !== undefined && data.categoryId !== null) {
+    if (data.categoryId) {
         updateData.categoryId = Number(data.categoryId);
     }
 
-    if (data.isActive !== undefined) {
-        updateData.isActive =
-            data.isActive === true || data.isActive === "true";
+    if (data.description !== undefined) {
+        updateData.description = data.description;
     }
 
+    if (data.thumbnail !== undefined) {
+        updateData.thumbnail = data.thumbnail;
+    }
 
-    const result = await prisma.productGroup.update({
-        where: { id: Number(id) },
+    if (data.isActive !== undefined) {
+        updateData.isActive = Boolean(data.isActive);
+    }
+
+    return prisma.productGroup.update({
+        where: { id },
         data: updateData
     });
-    return result;
 };
 
 export const deleteProductGroupServices = async (id) => {
@@ -129,21 +159,23 @@ export const deleteProductGroupServices = async (id) => {
     const exist = await prisma.productGroup.findUnique({
         where: { id }
     });
-    if (!exist) throw new Error("Nhóm sản phẩm không tồn tại");
+
+    if (!exist) {
+        throw new Error("Product group không tồn tại");
+    }
 
     const productCount = await prisma.product.count({
         where: { productGroupId: id }
     });
 
     if (productCount > 0) {
-        throw new Error("Không thể xóa product group đang chứa sản phẩm");
+        throw new Error("Không thể xóa product group đang có sản phẩm");
     }
 
     await prisma.productGroup.update({
         where: { id },
         data: { isActive: false }
     });
-
 
     return true;
 };
