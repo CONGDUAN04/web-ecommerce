@@ -7,15 +7,9 @@ datasource db {
   // url      = env("DATABASE_URL")
 }
 
-//////////////////////////////////////////////////////
-// ENUM
-//////////////////////////////////////////////////////
-
-enum AccountType {
-  SYSTEM
-  GOOGLE
-  GITHUB
-}
+// ========================
+// ENUMS
+// ========================
 
 enum OrderStatus {
   PENDING
@@ -28,21 +22,8 @@ enum OrderStatus {
 
 enum PaymentMethod {
   COD
-  PAYPAL
-  BANKING
-}
-
-enum OrderPaymentStatus {
-  UNPAID
-  PAID
-  REFUNDED
-}
-
-enum PaymentProvider {
-  COD
-  PAYPAL
   VNPAY
-  STRIPE
+  PAYPAL
 }
 
 enum PaymentStatus {
@@ -62,92 +43,112 @@ enum InventoryAction {
   ADJUST
 }
 
-//////////////////////////////////////////////////////
-// AUTH
-//////////////////////////////////////////////////////
+enum NotificationType {
+  ORDER
+  PROMOTION
+  SYSTEM
+}
+
+enum AccountType {
+  SYSTEM
+  GOOGLE
+  GITHUB
+}
+
+// ========================
+// USER & AUTH
+// ========================
 
 model Role {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id   Int    @id @default(autoincrement())
+  name String @unique
 
   users User[]
 
-  @@map("roles")
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  refreshToken String   @unique @db.VarChar(500)
+  userAgent    String? // trình duyệt / thiết bị
+  ipAddress    String? // IP đăng nhập
+  isRevoked    Boolean  @default(false)
+  expiresAt    DateTime // thời hạn refresh token
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([userId, isRevoked]) // lấy session còn hiệu lực của user
+  @@index([expiresAt]) // dọn session hết hạn
 }
 
 model User {
-  id          Int         @id @default(autoincrement())
-  username    String      @unique
-  password    String
+  id       Int     @id @default(autoincrement())
+  username String  @unique
+  password String?
+
   fullName    String?
   phone       String?
   avatar      String?
   accountType AccountType @default(SYSTEM)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
   roleId Int?
   role   Role? @relation(fields: [roleId], references: [id])
 
-  cart      Cart?
-  orders    Order[]
-  reviews   Review[]
-  wishlists Wishlist[]
-  addresses Address[]
+  cart          Cart?
+  orders        Order[]
+  reviews       Review[]
+  reviewReplies ReviewReply[]
+  wishlists     Wishlist[]
+  addresses     Address[]
+  notifications Notification[]
+  voucherUsages VoucherUsage[]
 
-  @@map("users")
+  createdAt DateTime  @default(now())
+  sessions  Session[]
+
+  @@index([roleId])
+  @@index([phone]) // tìm user theo SĐT
+  @@index([createdAt]) // admin sort danh sách user
+  @@index([accountType]) // filter user theo loại tài khoản
 }
 
-//////////////////////////////////////////////////////
+model Address {
+  id Int @id @default(autoincrement())
+
+  fullName String
+  phone    String
+  address  String
+  province String?
+  district String?
+  ward     String?
+
+  isDefault Boolean @default(false)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, isDefault]) // lấy địa chỉ mặc định nhanh
+}
+
+// ========================
 // PRODUCT
-//////////////////////////////////////////////////////
-
-model Category {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique
-  image       String?
-  description String?
-
-  parentId Int?
-
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-
-  productGroups ProductGroup[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("categories")
-}
-
-model Brand {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  productGroups ProductGroup[]
-
-  @@map("brands")
-}
+// ========================
 
 model ProductGroup {
-  id   Int    @id @default(autoincrement())
-  name String
-  slug String @unique
-
-  brandId    Int
-  categoryId Int
-  isActive   Boolean @default(true)
-
-  brand    Brand    @relation(fields: [brandId], references: [id])
-  category Category @relation(fields: [categoryId], references: [id])
+  id          Int     @id @default(autoincrement())
+  name        String
+  slug        String  @unique
+  description String?
+  thumbnail   String?
+  isActive    Boolean @default(true)
 
   products Product[]
 
@@ -155,173 +156,210 @@ model ProductGroup {
   updatedAt DateTime @updatedAt
 
   @@index([isActive])
-  @@index([categoryId])
-  @@index([brandId])
-  @@map("product_groups")
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  slug String @unique
+
+  parentId Int?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+
+  @@index([parentId])
+}
+
+model Brand {
+  id   Int     @id @default(autoincrement())
+  name String  @unique
+  slug String  @unique
+  logo String?
+
+  products Product[]
+
+  createdAt DateTime @default(now())
 }
 
 model Product {
   id          Int     @id @default(autoincrement())
   name        String
   slug        String  @unique
-  description String?
-  thumbnail   String?
+  description String? @db.Text
 
-  isActive  Boolean  @default(true)
+  thumbnail String?
+
+  brandId    Int
+  categoryId Int
+  groupId    Int?
+
+  brand    Brand         @relation(fields: [brandId], references: [id])
+  category Category      @relation(fields: [categoryId], references: [id])
+  group    ProductGroup? @relation(fields: [groupId], references: [id])
+
+  variants       Variant[]
+  images         ProductImage[]
+  specifications ProductSpecification[]
+  reviews        Review[]
+  wishlists      Wishlist[]
+
+  viewCount Int     @default(0)
+  isActive  Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  productGroupId Int
-  productGroup   ProductGroup @relation(fields: [productGroupId], references: [id])
-
-  variants       Variant[]
-  reviews        Review[]
-  wishlists      Wishlist[]
-  images         ProductImage[]
-  specifications Specification[]
-  attributes     ProductAttribute[]
-
-  @@unique([productGroupId, name])
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([groupId])
   @@index([isActive])
-  @@index([productGroupId, isActive])
-  @@map("products")
+  @@index([isActive, categoryId]) // lọc sản phẩm active theo danh mục
+  @@index([isActive, brandId]) // lọc sản phẩm active theo thương hiệu
+  @@index([viewCount]) // sort theo lượt xem / phổ biến
+  @@index([createdAt]) // sort theo mới nhất
 }
-
-//////////////////////////////////////////////////////
-// ATTRIBUTE SYSTEM (LINH HOẠT BIẾN THỂ)
-//////////////////////////////////////////////////////
-
-model Attribute {
-  id   Int    @id @default(autoincrement())
-  name String
-
-  values   AttributeValue[]
-  products ProductAttribute[]
-
-  @@map("attributes")
-}
-
-model AttributeValue {
-  id    Int    @id @default(autoincrement())
-  value String
-
-  attributeId Int
-  attribute   Attribute @relation(fields: [attributeId], references: [id])
-
-  variants VariantAttribute[]
-
-  @@map("attribute_values")
-}
-
-model ProductAttribute {
-  productId   Int
-  attributeId Int
-
-  product   Product   @relation(fields: [productId], references: [id])
-  attribute Attribute @relation(fields: [attributeId], references: [id])
-
-  @@id([productId, attributeId])
-  @@map("product_attributes")
-}
-
-//////////////////////////////////////////////////////
-// VARIANT (SKU THẬT)
-//////////////////////////////////////////////////////
 
 model Variant {
-  id Int @id @default(autoincrement())
-
+  id  Int    @id @default(autoincrement())
   sku String @unique
 
-  price    Int
-  quantity Int @default(0)
-  sold     Int @default(0)
+  color   String
+  storage Int
 
+  price        Int
+  comparePrice Int?
+
+  quantity Int     @default(0)
+  sold     Int     @default(0)
   isActive Boolean @default(true)
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  attributes VariantAttribute[]
-
-  cartItems     CartItem[]
-  orderItems    OrderItem[]
-  inventoryLogs InventoryLog[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  inventoryLogs  InventoryLog[]
+  imeis          Imei[]
+  flashSaleItems FlashSaleItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([productId])
-  @@index([productId, isActive])
-  @@map("variants")
+  @@index([price])
+  @@index([storage])
+  @@index([color])
+  @@index([isActive])
+  @@index([productId, isActive]) // lấy variant active của 1 sản phẩm
+  @@index([productId, price]) // lọc giá trong 1 sản phẩm
 }
 
-model VariantAttribute {
+model Imei {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+
+  isSold Boolean @default(false)
+
   variantId Int
-  valueId   Int
+  variant   Variant @relation(fields: [variantId], references: [id])
 
-  variant Variant        @relation(fields: [variantId], references: [id])
-  value   AttributeValue @relation(fields: [valueId], references: [id])
+  orderItemId Int?       @unique
+  orderItem   OrderItem? @relation(fields: [orderItemId], references: [id])
 
-  @@id([variantId, valueId])
-  @@map("variant_attributes")
+  createdAt DateTime @default(now())
+
+  @@index([variantId])
+  @@index([isSold])
+  @@index([variantId, isSold]) // tìm IMEI còn hàng của 1 variant
 }
 
-//////////////////////////////////////////////////////
+model ProductImage {
+  id        Int    @id @default(autoincrement())
+  imageUrl  String
+  sortOrder Int    @default(0)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductSpecification {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value String
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// ========================
 // CART
-//////////////////////////////////////////////////////
+// ========================
 
 model Cart {
   id Int @id @default(autoincrement())
 
-  sum Int @default(0)
-
   userId Int  @unique
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id])
 
   cartItems CartItem[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("carts")
 }
 
 model CartItem {
-  id       Int @id @default(autoincrement())
-  price    Int
+  id Int @id @default(autoincrement())
+
   quantity Int
+  price    Int
 
   cartId    Int
   variantId Int
 
   cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  variant Variant @relation(fields: [variantId], references: [id])
 
   @@unique([cartId, variantId])
   @@index([cartId])
-  @@map("cart_items")
+  @@index([variantId]) // FK thiếu - cần khi xóa variant
 }
 
-//////////////////////////////////////////////////////
+// ========================
 // ORDER
-//////////////////////////////////////////////////////
+// ========================
 
 model Order {
   id Int @id @default(autoincrement())
 
   totalPrice     Int
   discountAmount Int @default(0)
+  shippingFee    Int @default(0)
   finalPrice     Int
 
   receiverName    String
   receiverPhone   String
   receiverAddress String
 
-  status        OrderStatus        @default(PENDING)
+  note           String?
+  cancelReason   String?
+  trackingCode   String?
+  shippingMethod String?
+
+  status        OrderStatus   @default(PENDING)
   paymentMethod PaymentMethod
-  paymentStatus OrderPaymentStatus @default(UNPAID)
-  paymentRef    String?
+  paymentStatus PaymentStatus @default(PENDING)
+
+  confirmedAt DateTime?
+  shippedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
 
   userId    Int
   voucherId Int?
@@ -329,9 +367,9 @@ model Order {
   user    User     @relation(fields: [userId], references: [id])
   voucher Voucher? @relation(fields: [voucherId], references: [id])
 
-  orderItems OrderItem[]
-  payments   Payment[]
-  logs       OrderLog[]
+  orderItems    OrderItem[]
+  payments      Payment[]
+  voucherUsages VoucherUsage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -339,85 +377,133 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
-  @@map("orders")
+  @@index([paymentStatus]) // lọc đơn theo trạng thái thanh toán
+  @@index([voucherId]) // FK index còn thiếu
+  @@index([userId, status]) // user xem đơn theo trạng thái
+  @@index([userId, createdAt]) // user xem lịch sử đơn theo ngày
+  @@index([status, createdAt]) // admin lọc đơn theo trạng thái + thời gian
 }
 
 model OrderItem {
-  id       Int @id @default(autoincrement())
-  price    Int
+  id Int @id @default(autoincrement())
+
   quantity Int
+  price    Int
+
+  // Snapshot thông tin lúc đặt hàng
+  productName String
+  variantInfo String // vd: "Đen - 128GB"
+  thumbnail   String?
 
   orderId   Int
   variantId Int
 
-  order   Order   @relation(fields: [orderId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant Variant @relation(fields: [variantId], references: [id])
 
-  @@index([orderId])
-  @@index([variantId])
-  @@map("order_items")
-}
+  imei Imei?
 
-//////////////////////////////////////////////////////
-// PAYMENT
-//////////////////////////////////////////////////////
+  @@index([orderId])
+  @@index([variantId]) // thống kê doanh số theo variant
+}
 
 model Payment {
-  id       Int             @id @default(autoincrement())
-  amount   Int
-  provider PaymentProvider
-  status   PaymentStatus
-  rawData  Json?
+  id Int @id @default(autoincrement())
+
+  amount        Int
+  provider      PaymentMethod
+  status        PaymentStatus
+  transactionId String?
 
   orderId Int
-  order   Order @relation(fields: [orderId], references: [id])
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@index([orderId])
-  @@map("payments")
+  @@index([status]) // lọc payment theo trạng thái
+  @@index([transactionId]) // tra cứu theo mã giao dịch VNPay/PayPal
 }
 
-//////////////////////////////////////////////////////
-// LOG
-//////////////////////////////////////////////////////
+// ========================
+// VOUCHER
+// ========================
 
-model OrderLog {
-  id        Int         @id @default(autoincrement())
-  status    OrderStatus
-  note      String?
-  createdAt DateTime    @default(now())
+model Voucher {
+  id   Int    @id @default(autoincrement())
+  code String @unique
 
-  orderId Int
-  order   Order @relation(fields: [orderId], references: [id])
+  type VoucherType
 
-  @@index([orderId])
-  @@map("order_logs")
+  discount      Int
+  maxDiscount   Int?
+  minOrderValue Int?
+
+  startDate DateTime
+  endDate   DateTime
+
+  usageLimit   Int?
+  usagePerUser Int?
+  usedCount    Int  @default(0)
+
+  isActive Boolean @default(true)
+
+  orders        Order[]
+  voucherUsages VoucherUsage[]
+
+  @@index([startDate, endDate])
+  @@index([isActive])
 }
+
+model VoucherUsage {
+  id Int @id @default(autoincrement())
+
+  userId    Int
+  voucherId Int
+  orderId   Int @unique
+
+  user    User    @relation(fields: [userId], references: [id])
+  voucher Voucher @relation(fields: [voucherId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, voucherId, orderId])
+  @@index([userId, voucherId])
+  @@index([voucherId]) // đếm tổng lượt dùng của 1 voucher
+}
+
+// ========================
+// INVENTORY
+// ========================
 
 model InventoryLog {
-  id        Int             @id @default(autoincrement())
-  action    InventoryAction
-  quantity  Int
-  note      String?
-  createdAt DateTime        @default(now())
+  id Int @id @default(autoincrement())
+
+  action   InventoryAction
+  quantity Int
+  note     String?
 
   variantId Int
   variant   Variant @relation(fields: [variantId], references: [id])
 
+  createdAt DateTime @default(now())
+
   @@index([variantId])
-  @@map("inventory_logs")
+  @@index([action]) // lọc theo loại hành động
+  @@index([variantId, createdAt]) // xem lịch sử nhập/xuất kho theo thời gian
 }
 
-//////////////////////////////////////////////////////
-// REVIEW + WISHLIST
-//////////////////////////////////////////////////////
+// ========================
+// REVIEW
+// ========================
 
 model Review {
-  id      Int     @id @default(autoincrement())
-  rating  Int
-  comment String?
+  id Int @id @default(autoincrement())
+
+  rating   Int
+  comment  String? @db.Text
+  isHidden Boolean @default(false)
 
   productId Int
   userId    Int
@@ -425,10 +511,47 @@ model Review {
   product Product @relation(fields: [productId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
+  images  ReviewImage[]
+  replies ReviewReply[]
+
+  createdAt DateTime @default(now())
+
   @@unique([userId, productId])
   @@index([productId])
-  @@map("reviews")
+  @@index([userId]) // xem tất cả review của 1 user
+  @@index([productId, rating]) // lọc review theo số sao
+  @@index([productId, isHidden, createdAt]) // lấy review hiển thị, sort mới nhất
 }
+
+model ReviewImage {
+  id       Int    @id @default(autoincrement())
+  imageUrl String
+
+  reviewId Int
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
+model ReviewReply {
+  id      Int    @id @default(autoincrement())
+  comment String @db.Text
+
+  reviewId Int
+  userId   Int
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([reviewId])
+  @@index([userId]) // xem tất cả reply của 1 admin/user
+}
+
+// ========================
+// WISHLIST
+// ========================
 
 model Wishlist {
   id Int @id @default(autoincrement())
@@ -439,96 +562,97 @@ model Wishlist {
   user    User    @relation(fields: [userId], references: [id])
   product Product @relation(fields: [productId], references: [id])
 
+  createdAt DateTime @default(now())
+
   @@unique([userId, productId])
   @@index([userId])
-  @@map("wishlists")
 }
 
-//////////////////////////////////////////////////////
-// OTHER
-//////////////////////////////////////////////////////
+// ========================
+// FLASH SALE
+// ========================
 
-model ProductImage {
-  id       Int    @id @default(autoincrement())
-  imageUrl String
+model FlashSale {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startTime DateTime
+  endTime   DateTime
+  isActive  Boolean  @default(true)
 
-  productId Int
-  product   Product @relation(fields: [productId], references: [id])
+  items FlashSaleItem[]
 
-  @@index([productId])
-  @@map("product_images")
+  createdAt DateTime @default(now())
+
+  @@index([isActive])
+  @@index([startTime, endTime])
 }
 
-model Specification {
-  id    Int    @id @default(autoincrement())
-  name  String
-  value String
+model FlashSaleItem {
+  id        Int @id @default(autoincrement())
+  salePrice Int
+  quantity  Int
+  sold      Int @default(0)
 
-  productId Int
-  product   Product @relation(fields: [productId], references: [id])
+  flashSaleId Int
+  variantId   Int
 
-  @@index([productId])
-  @@map("specifications")
+  flashSale FlashSale @relation(fields: [flashSaleId], references: [id])
+  variant   Variant   @relation(fields: [variantId], references: [id])
+
+  @@unique([flashSaleId, variantId])
+  @@index([flashSaleId])
+  @@index([variantId]) // kiểm tra variant có đang flash sale không
 }
 
-model Address {
-  id        Int     @id @default(autoincrement())
-  fullName  String
-  phone     String?
-  address   String
-  isDefault Boolean @default(false)
+// ========================
+// NOTIFICATION
+// ========================
+
+model Notification {
+  id      Int              @id @default(autoincrement())
+  title   String
+  content String
+  link    String?
+  type    NotificationType @default(SYSTEM)
+  isRead  Boolean          @default(false)
 
   userId Int
   user   User @relation(fields: [userId], references: [id])
 
-  @@index([userId])
-  @@map("addresses")
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt]) // lấy thông báo mới nhất của user
 }
 
-model Voucher {
-  id            Int         @id @default(autoincrement())
-  code          String      @unique
-  type          VoucherType
-  discount      Int
-  maxDiscount   Int?
-  minOrderValue Int?
-
-  startDate  DateTime
-  endDate    DateTime
-  usageLimit Int?
-  usedCount  Int      @default(0)
-
-  isActive Boolean @default(true)
-
-  orders Order[]
-
-  @@index([startDate, endDate])
-  @@map("vouchers")
-}
+// ========================
+// UI / CMS
+// ========================
 
 model Banner {
-  id        Int      @id @default(autoincrement())
-  title     String?
-  image     String
-  link      String?
-  isActive  Boolean  @default(true)
+  id    Int     @id @default(autoincrement())
+  title String?
+  image String
+  link  String?
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@index([isActive])
-  @@map("banners")
 }
 
 model Slider {
-  id        Int      @id @default(autoincrement())
-  image     String
-  title     String?
-  subTitle  String?
-  link      String?
-  sortOrder Int      @default(0)
+  id       Int     @id @default(autoincrement())
+  image    String
+  title    String?
+  subTitle String?
+  link     String?
+
+  sortOrder Int @default(0)
+
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@index([sortOrder])
-  @@map("sliders")
 }

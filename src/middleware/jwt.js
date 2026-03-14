@@ -1,74 +1,74 @@
 import jwt from "jsonwebtoken";
+import { ROLE } from "../config/constant.js";
 
 const checkValidJWT = (req, res, next) => {
-    const path = req.originalUrl.replace(/^\/api/, '');
-    // ✅ whitelist: bỏ qua check JWT cho login (có thể thêm /register nếu muốn)
+    const path = req.originalUrl.replace(/^\/api/, "");
+
     const whiteList = [
-        "/login",
-        "/register",
-        "/add-product-to-cart",
-        "/logout"
+        "/auth/login",
+        "/auth/register",
+        "/auth/logout",
+        "/auth/refresh-token",
     ];
 
-    const isWhiteList = whiteList.some(route => path.startsWith(route));
-    if (isWhiteList) {
-        next();
-        return;
+    const isWhiteList = whiteList.some((route) => path.startsWith(route));
+    if (isWhiteList) return next();
+
+    // Kiểm tra token trước try/catch
+    const token = req.headers["authorization"]?.split(" ")[1];
+
+    if (!token) {
+        return res.status(401).json({
+            data: null,
+            message: "Không có token trong header",
+        });
     }
-    console.log("REQ PATH:", req.path);
-    console.log("IS WHITELIST:", isWhiteList);
 
-    const token = req.headers['authorization']?.split(' ')[1];
+    if (!process.env.JWT_SECRET) {
+        return res.status(500).json({
+            data: null,
+            message: "Thiếu JWT_SECRET trong server config",
+        });
+    }
+
     try {
-        if (!token) {
-            return res.status(401).json({
-                data: null,
-                message: "Không có token trong header"
-            });
-        }
-
-        if (!process.env.JWT_SECRET) {
-            return res.status(500).json({
-                data: null,
-                message: "Thiếu JWT_SECRET trong server config"
-            });
-        }
-
         const dataDecoded = jwt.verify(token, process.env.JWT_SECRET);
 
+        // Chỉ lưu những field có trong payload
         req.user = {
             id: dataDecoded.id,
             username: dataDecoded.username,
             fullName: dataDecoded.fullName,
-            address: dataDecoded.address,
-            phone: dataDecoded.phone,
-            password: dataDecoded.password,
+            role: dataDecoded.role,           // string: "Admin" | "User"
             accountType: dataDecoded.accountType,
-            avatar: dataDecoded.avatar,
-            roleId: dataDecoded.roleId,
-            role: dataDecoded.role,
         };
 
-        next(); // ✅ chỉ gọi next khi token hợp lệ
+        next();
     } catch (error) {
         return res.status(401).json({
             data: null,
-            message: "Token không hợp lệ (không truyền lên token hoặc token hết hạn)"
+            message: "Token không hợp lệ hoặc đã hết hạn",
         });
     }
-}
+};
 
+// Kiểm tra đã đăng nhập
 export const isLogin = (req, res, next) => {
-    if (!req.user) return res.status(401).json({ message: "Bạn chưa đăng nhập!" });
+    if (!req.user) {
+        return res.status(401).json({ message: "Bạn chưa đăng nhập!" });
+    }
     next();
 };
 
+// Kiểm tra quyền Admin
 export const isAdmin = (req, res, next) => {
-    if (!req.user) return res.status(401).json({ message: "Bạn chưa đăng nhập!" });
-    if (req.user?.role?.name !== "ADMIN") return res.status(403).json({ message: "Bạn không có quyền truy cập" });
+    if (!req.user) {
+        return res.status(401).json({ message: "Bạn chưa đăng nhập!" });
+    }
+    if (req.user.role !== ROLE.ADMIN) {
+        return res.status(403).json({ message: "Bạn không có quyền truy cập" });
+    }
     next();
 };
 
-export {
-    checkValidJWT
-};
+export { checkValidJWT };

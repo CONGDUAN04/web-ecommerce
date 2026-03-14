@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 export const registerSchema = z.object({
     body: z.object({
         fullName: z
@@ -31,7 +32,7 @@ export const loginSchema = z.object({
     body: z.object({
         username: z
             .string()
-            .min(1, "Username không được để trống")
+            .min(1, "Email không được để trống")
             .trim(),
 
         password: z
@@ -66,12 +67,6 @@ export const updateProfileSchema = z.object({
             .string()
             .min(1, "Họ tên không được để trống")
             .max(255, "Họ tên tối đa 255 ký tự")
-            .trim()
-            .optional(),
-
-        address: z
-            .string()
-            .max(500, "Địa chỉ tối đa 500 ký tự")
             .trim()
             .optional(),
 
