@@ -60,10 +60,10 @@ enum AccountType {
 // ========================
 
 model Role {
-  id   Int    @id @default(autoincrement())
-  name String @unique
-
-  users User[]
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  users       User[]
 
   createdAt DateTime @default(now())
 }

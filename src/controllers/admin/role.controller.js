@@ -78,6 +78,7 @@ export const updateRole = async (req, res) => {
     }
 };
 
+// DELETE /admin/roles/:id
 export const deleteRole = async (req, res) => {
     try {
         await deleteRoleServices(req.validated.params.id);
