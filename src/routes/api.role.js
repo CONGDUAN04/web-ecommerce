@@ -7,7 +7,6 @@ import {
     deleteRole,
 } from "../controllers/admin/role.controller.js";
 import { validate } from "../middleware/validate.middleware.js";
-import { checkValidJWT, isAdmin } from "../middleware/jwt.js";
 import {
     createRoleSchema,
     updateRoleSchema,
@@ -15,8 +14,6 @@ import {
 import { idParamSchema } from "../validations/common/params.js";
 import { paginationSchema } from "../validations/common/query.js";
 const router = Router();
-router.use(checkValidJWT);
-router.use(isAdmin);
 router.get("/", validate(paginationSchema), getRoles);
 router.get("/:id", validate(idParamSchema), getRoleById);
 router.post("/", validate(createRoleSchema), createRole);

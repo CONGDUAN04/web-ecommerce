@@ -163,15 +163,9 @@ model Category {
   name String @unique
   slug String @unique
 
-  parentId Int?
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-
   products Product[]
 
   createdAt DateTime @default(now())
-
-  @@index([parentId])
 }
 
 model Brand {
