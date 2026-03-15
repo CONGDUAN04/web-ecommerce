@@ -1,67 +1,58 @@
 import { z } from "zod";
 import { idParam } from "../common/params.js";
+
+// ─── reusable fields ───────────────────────────────────────────────────────
+
+const usernameField = z
+    .string({ required_error: "Username không được để trống" })
+    .min(1, "Username không được để trống")
+    .max(255, "Username tối đa 255 ký tự")
+    .email("Username phải là email hợp lệ")
+    .trim()
+    .toLowerCase();
+
+const fullNameField = z
+    .string({ required_error: "Họ tên không được để trống" })
+    .min(1, "Họ tên không được để trống")
+    .max(100, "Họ tên tối đa 100 ký tự")
+    .trim();
+
+const phoneField = z
+    .string()
+    .regex(
+        /^(0|\+84)\d{9}$/,
+        "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)"
+    )
+    .optional()
+    .nullable();
+
+const roleIdField = z
+    .coerce
+    .number({ required_error: "RoleId không được để trống" })
+    .int()
+    .positive("RoleId phải là số nguyên dương");
+
+// ─── create ────────────────────────────────────────────────────────────────
+
 export const createUserSchema = z.object({
     body: z.object({
-        username: z
-            .string()
-            .min(1, "Username không được để trống")
-            .email("Username phải là email hợp lệ")
-            .max(255, "Username tối đa 255 ký tự")
-            .trim()
-            .toLowerCase(),
-
-        fullName: z
-            .string()
-            .min(1, "Họ tên không được để trống")
-            .max(255, "Họ tên tối đa 255 ký tự")
-            .trim(),
-
-        phone: z
-            .string()
-            .regex(/^(0|\+84)\d{9}$/, "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)")
-            .optional()
-            .nullable(),
-
-        roleId: z
-            .union([z.number(), z.string()])
-            .refine((val) => val !== null && val !== undefined && val !== "", {
-                message: "RoleID không được để trống",
-            })
-            .transform((val) => Number(val))
-            .refine((val) => !isNaN(val) && val > 0, {
-                message: "RoleID phải là số nguyên dương",
-            }),
-    }),
+        username: usernameField,
+        fullName: fullNameField,
+        phone: phoneField,
+        roleId: roleIdField
+    })
 });
+
+// ─── update ────────────────────────────────────────────────────────────────
 
 export const updateUserSchema = z.object({
     params: idParam,
     body: z.object({
-        fullName: z
-            .string()
-            .min(1, "Họ tên không được để trống")
-            .max(255, "Họ tên tối đa 255 ký tự")
-            .trim()
-            .optional(),
-
-        phone: z
-            .string()
-            .regex(/^(0|\+84)\d{9}$/, "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)")
-            .optional()
-            .nullable()
-            .or(z.literal("")),
-
-        roleId: z
-            .union([z.number(), z.string()])
-            .transform((val) => {
-                if (val === null || val === undefined || val === "") return null;
-                return Number(val);
-            })
-            .refine((val) => val === null || (!isNaN(val) && val > 0), {
-                message: "Role ID phải là số dương hoặc để trống",
-            })
-            .optional()
-            .nullable(),
-    }),
-    query: z.object({}).optional(),
+        fullName: fullNameField.optional(),
+        phone: phoneField,
+        roleId: roleIdField.optional().nullable()
+    }).refine(
+        (body) => Object.keys(body).length > 0,
+        { message: "Cần ít nhất một trường để cập nhật" }
+    )
 });
