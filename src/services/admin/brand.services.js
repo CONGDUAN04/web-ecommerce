@@ -1,17 +1,24 @@
 import prisma from "../../config/client.js";
+import { generateSlug } from "../../utils/slug.js";
 
 export const getBrandsServices = async ({ page = 1, limit = 10 }) => {
-
     page = Math.max(1, Number(page));
     limit = Math.min(Math.max(1, Number(limit)), 100);
-
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
         prisma.brand.findMany({
             skip,
             take: limit,
-            orderBy: { id: "desc" }
+            orderBy: { id: "desc" },
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+                logo: true,
+                createdAt: true,
+                _count: { select: { products: true } }
+            }
         }),
         prisma.brand.count()
     ]);
@@ -28,94 +35,107 @@ export const getBrandsServices = async ({ page = 1, limit = 10 }) => {
 };
 
 export const getBrandByIdServices = async (id) => {
-
     const brand = await prisma.brand.findUnique({
-        where: { id: Number(id) }
+        where: { id: Number(id) },
+        select: {
+            id: true,
+            name: true,
+            slug: true,
+            logo: true,
+            createdAt: true,
+            _count: { select: { products: true } }
+        }
     });
 
-    if (!brand) {
-        throw new Error("Thương hiệu không tồn tại");
-    }
+    if (!brand) throw new Error("Thương hiệu không tồn tại");
 
     return brand;
 };
 
 export const createBrandServices = async (data) => {
-
     const existed = await prisma.brand.findUnique({
         where: { name: data.name }
     });
+    if (existed) throw new Error("Tên thương hiệu đã tồn tại");
 
-    if (existed) {
-        throw new Error("Tên thương hiệu đã tồn tại");
-    }
+    const baseSlug = generateSlug(data.name);
+    const slugConflict = await prisma.brand.findUnique({
+        where: { slug: baseSlug }
+    });
+    const slug = slugConflict ? `${baseSlug}-${Date.now()}` : baseSlug;
 
     return prisma.brand.create({
         data: {
             name: data.name,
-            image: data.image ?? null
+            slug,
+            logo: data.logo ?? null
+        },
+        select: {
+            id: true,
+            name: true,
+            slug: true,
+            logo: true,
+            createdAt: true
         }
     });
 };
 
 export const updateBrandServices = async (id, data) => {
-
     id = Number(id);
 
-    const brand = await prisma.brand.findUnique({
-        where: { id }
-    });
+    const brand = await prisma.brand.findUnique({ where: { id } });
+    if (!brand) throw new Error("Thương hiệu không tồn tại");
 
-    if (!brand) {
-        throw new Error("Thương hiệu không tồn tại");
-    }
-
-    if (data.name) {
-
-        const duplicated = await prisma.brand.findFirst({
-            where: {
-                name: data.name,
-                NOT: { id }
-            }
+    if (data.name && data.name !== brand.name) {
+        const duplicated = await prisma.brand.findUnique({
+            where: { name: data.name }
         });
-
-        if (duplicated) {
-            throw new Error("Tên thương hiệu đã tồn tại");
-        }
+        if (duplicated) throw new Error("Tên thương hiệu đã tồn tại");
     }
+
+    const updateData = {};
+
+    if (data.name !== undefined) {
+        const baseSlug = generateSlug(data.name);
+        const slugConflict = await prisma.brand.findFirst({
+            where: { slug: baseSlug, NOT: { id } }
+        });
+        updateData.name = data.name;
+        updateData.slug = slugConflict ? `${baseSlug}-${Date.now()}` : baseSlug;
+    }
+
+    if (data.logo !== undefined) updateData.logo = data.logo;
 
     return prisma.brand.update({
         where: { id },
-        data: {
-            ...(data.name !== undefined && { name: data.name }),
-            ...(data.image !== undefined && { image: data.image })
+        data: updateData,
+        select: {
+            id: true,
+            name: true,
+            slug: true,
+            logo: true,
+            createdAt: true
         }
     });
 };
 
 export const deleteBrandServices = async (id) => {
-
     id = Number(id);
 
-    const brand = await prisma.brand.findUnique({
-        where: { id }
-    });
+    const brand = await prisma.brand.findUnique({ where: { id } });
+    if (!brand) throw new Error("Thương hiệu không tồn tại");
 
-    if (!brand) {
-        throw new Error("Thương hiệu không tồn tại");
-    }
-
-    const used = await prisma.productGroup.count({
+    // ← FIX: check product, không phải productGroup
+    const productCount = await prisma.product.count({
         where: { brandId: id }
     });
-
-    if (used > 0) {
-        throw new Error("Thương hiệu đang được sử dụng, không thể xóa");
+    if (productCount > 0) {
+        throw new Error(
+            `Không thể xóa — thương hiệu đang có ${productCount} sản phẩm`
+        );
     }
 
-    await prisma.brand.delete({
-        where: { id }
-    });
+    await prisma.brand.delete({ where: { id } });
 
     return true;
 };

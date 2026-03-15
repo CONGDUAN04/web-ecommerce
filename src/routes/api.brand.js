@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import {
     getBrands,
     getBrandById,
@@ -7,12 +8,11 @@ import {
     deleteBrand
 } from "../controllers/admin/brand.controller.js";
 
-import { uploadSingleFile } from "../middleware/multer.js";
 import { validate } from "../middleware/validate.middleware.js";
+import { uploadSingleFile } from "../middleware/multer.js";
+import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
 import { paginationSchema } from "../validations/common/query.js";
 import { idParamSchema } from "../validations/common/params.js";
-import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
-
 import {
     createBrandSchema,
     updateBrandSchema
@@ -20,26 +20,31 @@ import {
 
 const router = Router();
 
+// GET    /api/admin/brands
 router.get("/", validate(paginationSchema), getBrands);
 
+// GET    /api/admin/brands/:id
 router.get("/:id", validate(idParamSchema), getBrandById);
 
+// POST   /api/admin/brands
 router.post(
     "/",
-    uploadSingleFile("image", "images/brand"),
+    uploadSingleFile("logo", "images/brand"),
     uploadErrorHandler,
     validate(createBrandSchema),
     createBrand
 );
 
+// PUT    /api/admin/brands/:id
 router.put(
     "/:id",
-    uploadSingleFile("image", "images/brand"),
+    uploadSingleFile("logo", "images/brand"),
     uploadErrorHandler,
     validate(updateBrandSchema),
     updateBrand
 );
 
+// DELETE /api/admin/brands/:id
 router.delete("/:id", validate(idParamSchema), deleteBrand);
 
 export default router;

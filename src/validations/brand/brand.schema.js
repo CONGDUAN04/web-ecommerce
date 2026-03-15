@@ -1,31 +1,24 @@
 import { z } from "zod";
 import { idParam } from "../common/params.js";
 
+const nameField = z
+    .string({ required_error: "Tên thương hiệu không được để trống" })
+    .min(1, "Tên thương hiệu không được để trống")
+    .max(100, "Tên thương hiệu tối đa 100 ký tự")
+    .trim();
+
 export const createBrandSchema = z.object({
-
     body: z.object({
-
-        name: z
-            .string()
-            .min(1, "Tên thương hiệu không được để trống")
-            .max(255, "Tên thương hiệu tối đa 255 ký tự")
-            .trim()
-
+        name: nameField
     })
 });
 
 export const updateBrandSchema = z.object({
-
     params: idParam,
-
     body: z.object({
-
-        name: z
-            .string()
-            .min(1, "Tên thương hiệu không được để trống")
-            .max(255, "Tên thương hiệu tối đa 255 ký tự")
-            .trim()
-            .optional()
-
-    })
+        name: nameField.optional()
+    }).refine(
+        (body) => Object.keys(body).length > 0,
+        { message: "Cần ít nhất một trường để cập nhật" }
+    )
 });
