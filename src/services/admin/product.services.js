@@ -1,34 +1,55 @@
 import prisma from "../../config/client.js";
-import slugify from "slugify";
+import { generateSlug } from "../../utils/slug.js";
+
+const productInclude = {
+    brand: { select: { id: true, name: true, slug: true, logo: true } },
+    category: { select: { id: true, name: true, slug: true } },
+    group: { select: { id: true, name: true, slug: true, series: true } }
+};
+
+// ========================
+// GET LIST
+// ========================
 
 export const getProductsServices = async ({
     page = 1,
     limit = 10,
-    productGroupId
+    groupId,
+    brandId,
+    categoryId,
+    search
 }) => {
     page = Math.max(1, Number(page));
     limit = Math.min(Math.max(1, Number(limit)), 100);
     const skip = (page - 1) * limit;
 
-    const where = {};
-    if (productGroupId) {
-        where.productGroupId = Number(productGroupId);
-    }
+    const where = { isActive: true };
+    if (groupId) where.groupId = Number(groupId);
+    if (brandId) where.brandId = Number(brandId);
+    if (categoryId) where.categoryId = Number(categoryId);
+    if (search) where.name = { contains: search };
 
     const [items, total] = await Promise.all([
         prisma.product.findMany({
             where,
             skip,
             take: limit,
-            orderBy: { id: "desc" },
+            orderBy: { createdAt: "desc" },
             include: {
-                colors: true,
-                productGroup: {
-                    include: {
-                        brand: true,
-                        category: true
-                    }
-                }
+                ...productInclude,
+                variants: {
+                    where: { isActive: true },
+                    select: {
+                        id: true,
+                        color: true,
+                        storage: true,
+                        price: true,
+                        comparePrice: true,
+                        quantity: true
+                    },
+                    orderBy: { price: "asc" }
+                },
+                _count: { select: { variants: true, reviews: true } }
             }
         }),
         prisma.product.count({ where })
@@ -36,189 +57,153 @@ export const getProductsServices = async ({
 
     return {
         items,
-        pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit)
-        }
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
     };
 };
 
-export const getProductByIdServices = async (id) => {
-    id = Number(id);
+// ========================
+// GET BY ID
+// ========================
 
+export const getProductByIdServices = async (id) => {
     const product = await prisma.product.findUnique({
-        where: { id },
+        where: { id: Number(id) },
         include: {
-            productGroup: {
-                include: {
-                    brand: true,
-                    category: true
-                }
+            ...productInclude,
+            variants: {
+                where: { isActive: true },
+                orderBy: [{ storage: "asc" }, { color: "asc" }]
             },
-            colors: true,
-            images: true,
-            specifications: true
+            images: { orderBy: { sortOrder: "asc" } },
+            specifications: true,
+            _count: { select: { reviews: true } }
+        }
+    });
+
+    if (!product) throw new Error("Sản phẩm không tồn tại");
+    return product;
+};
+
+// ========================
+// GET BY SLUG
+// ========================
+
+export const getProductBySlugServices = async (slug) => {
+    const product = await prisma.product.findUnique({
+        where: { slug },
+        include: {
+            ...productInclude,
+            variants: {
+                where: { isActive: true },
+                orderBy: [{ storage: "asc" }, { color: "asc" }]
+            },
+            images: { orderBy: { sortOrder: "asc" } },
+            specifications: true,
+            _count: { select: { reviews: true } }
         }
     });
 
     if (!product) throw new Error("Sản phẩm không tồn tại");
 
+    await prisma.product.update({
+        where: { slug },
+        data: { viewCount: { increment: 1 } }
+    });
+
     return product;
 };
 
+// ========================
+// CREATE
+// ========================
+
 export const createProductServices = async (data) => {
-    const { name, productGroupId, description, thumbnail } = data;
+    const slug = generateSlug(data.name);
 
+    const exist = await prisma.product.findUnique({ where: { slug } });
+    if (exist) throw new Error("Tên sản phẩm đã tồn tại");
+
+    // groupId bắt buộc → luôn lấy brandId/categoryId từ group
     const group = await prisma.productGroup.findUnique({
-        where: { id: Number(productGroupId) }
+        where: { id: Number(data.groupId) }
     });
-
     if (!group) throw new Error("Product group không tồn tại");
-
-    // chống trùng variant trong cùng group
-    const existed = await prisma.product.findFirst({
-        where: {
-            productGroupId: Number(productGroupId),
-            name
-        }
-    });
-
-    if (existed) throw new Error("Phiên bản đã tồn tại");
-
-    const slug = slugify(`${group.name} ${name}`, {
-        lower: true,
-        strict: true
-    });
+    if (!group.isActive) throw new Error("Product group đã bị ẩn");
 
     return prisma.product.create({
         data: {
-            name,
+            name: data.name,
             slug,
-            description: description || "",
-            thumbnail,
-            productGroupId: Number(productGroupId)
-        }
+            groupId: group.id,
+            brandId: group.brandId,    // tự fill từ group
+            categoryId: group.categoryId, // tự fill từ group
+            description: data.description ?? null,
+            thumbnail: data.thumbnail ?? null
+        },
+        include: productInclude
     });
 };
 
+// ========================
+// UPDATE
+// ========================
 
-export const updateProductServices = async (id, data, thumbnail) => {
+export const updateProductServices = async (id, data) => {
     id = Number(id);
 
-    return prisma.$transaction(async (tx) => {
-        // lock row
-        await tx.$executeRaw`
-      SELECT id FROM products WHERE id=${id} FOR UPDATE
-    `;
+    const exist = await prisma.product.findUnique({ where: { id } });
+    if (!exist) throw new Error("Sản phẩm không tồn tại");
 
-        const product = await tx.product.findUnique({
-            where: { id },
-            include: { productGroup: true }
+    const updateData = {};
+
+    if (data.name) {
+        const slug = generateSlug(data.name);
+        const duplicated = await prisma.product.findFirst({
+            where: { slug, NOT: { id } }
         });
+        if (duplicated) throw new Error("Tên sản phẩm đã tồn tại");
+        updateData.name = data.name;
+        updateData.slug = slug;
+    }
 
-        if (!product) throw new Error("Sản phẩm không tồn tại");
-
-        const updateData = {};
-
-        if (data.name !== undefined) {
-            const orderCount = await tx.orderItem.count({
-                where: {
-                    color: {
-                        productId: id
-                    }
-                }
-            });
-
-            if (orderCount > 0)
-                throw new Error("Không thể đổi phiên bản vì đã phát sinh giao dịch");
-
-            const duplicated = await tx.product.findFirst({
-                where: {
-                    productGroupId: product.productGroupId,
-                    name: data.name,
-                    NOT: { id }
-                }
-            });
-
-            if (duplicated) throw new Error("Phiên bản đã tồn tại");
-
-            const fullName = `${product.productGroup.name} ${data.name}`;
-
-            updateData.name = data.name;
-            updateData.slug = slugify(fullName, { lower: true, strict: true });
-        }
-
-        if (data.description !== undefined)
-            updateData.description = data.description;
-        if (thumbnail)
-            updateData.thumbnail = thumbnail;
-        if (data.isActive !== undefined) {
-            updateData.isActive = Boolean(data.isActive);
-        }
-        return tx.product.update({
-            where: { id },
-            data: updateData
+    // Đổi group → brandId/categoryId tự đồng bộ theo group mới
+    if (data.groupId !== undefined) {
+        const group = await prisma.productGroup.findUnique({
+            where: { id: Number(data.groupId) }
         });
+        if (!group) throw new Error("Product group không tồn tại");
+        if (!group.isActive) throw new Error("Product group đã bị ẩn");
+
+        updateData.groupId = group.id;
+        updateData.brandId = group.brandId;    // tự đồng bộ
+        updateData.categoryId = group.categoryId; // tự đồng bộ
+    }
+
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
+    if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
+
+    return prisma.product.update({
+        where: { id },
+        data: updateData,
+        include: productInclude
     });
 };
+
+// ========================
+// DELETE (soft delete)
+// ========================
 
 export const deleteProductServices = async (id) => {
     id = Number(id);
 
-    return prisma.$transaction(async (tx) => {
-        const product = await tx.product.findUnique({
-            where: { id },
-            include: {
-                colors: {
-                    include: {
-                        orderItems: { take: 1 }
-                    }
-                }
-            }
-        });
+    const exist = await prisma.product.findUnique({ where: { id } });
+    if (!exist) throw new Error("Sản phẩm không tồn tại");
 
-        if (!product) throw new Error("Sản phẩm không tồn tại");
-
-        const hasOrder = product.colors.some(
-            c => c.orderItems.length > 0
-        );
-        if (hasOrder) {
-            return tx.product.update({
-                where: { id },
-                data: { isActive: false }
-            });
-        }
-        await tx.cartItem.deleteMany({
-            where: {
-                color: {
-                    productId: id
-                }
-            }
-        });
-
-        await tx.colorVariant.deleteMany({
-            where: { productId: id }
-        });
-
-        await tx.productImage.deleteMany({
-            where: { productId: id }
-        });
-
-        await tx.specification.deleteMany({
-            where: { productId: id }
-        });
-
-        await tx.wishlist.deleteMany({
-            where: { productId: id }
-        });
-
-        await tx.product.delete({
-            where: { id }
-        });
-
-        return true;
+    await prisma.product.update({
+        where: { id },
+        data: { isActive: false }
     });
-};
 
+    return true;
+};

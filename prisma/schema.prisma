@@ -194,19 +194,18 @@ model Brand {
 
 model Product {
   id          Int     @id @default(autoincrement())
-  name        String // "iPhone 17 Pro Max"
+  name        String
   slug        String  @unique
   description String? @db.Text
+  thumbnail   String?
 
-  thumbnail String?
+  brandId    Int // tự fill từ group khi tạo
+  categoryId Int // tự fill từ group khi tạo
+  groupId    Int // bắt buộc — không còn optional
 
-  brandId    Int
-  categoryId Int
-  groupId    Int? // thuộc ProductGroup nào
-
-  brand    Brand         @relation(fields: [brandId], references: [id])
-  category Category      @relation(fields: [categoryId], references: [id])
-  group    ProductGroup? @relation(fields: [groupId], references: [id])
+  brand    Brand        @relation(fields: [brandId], references: [id])
+  category Category     @relation(fields: [categoryId], references: [id])
+  group    ProductGroup @relation(fields: [groupId], references: [id])
 
   variants       Variant[]
   images         ProductImage[]
@@ -226,7 +225,7 @@ model Product {
   @@index([isActive])
   @@index([isActive, categoryId])
   @@index([isActive, brandId])
-  @@index([isActive, groupId]) // lấy product active trong 1 group
+  @@index([isActive, groupId])
   @@index([viewCount])
   @@index([createdAt])
 }
