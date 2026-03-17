@@ -7,7 +7,7 @@ import brandRoutes from "./api.brand.js";
 import colorRoutes from "./api.color.js";
 import dashboardRoutes from "./api.dashboard.js";
 import roleRoutes from "./api.role.js";
-// import productGroupRoutes from "./api.productGroup.js";
+import productGroupRoutes from "./api.productGroup.js";
 import inventoryRoutes from "./api.inventory.js";
 const router = Router();
 
@@ -18,7 +18,7 @@ router.use("/products", productRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/brands", brandRoutes);
 router.use("/colors", colorRoutes);
-// router.use("/product-groups", productGroupRoutes);
+router.use("/product-groups", productGroupRoutes);
 router.use("/roles", roleRoutes);
 router.use("/inventory", inventoryRoutes);
 

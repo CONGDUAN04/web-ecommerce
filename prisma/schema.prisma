@@ -71,10 +71,10 @@ model Role {
 model Session {
   id           Int      @id @default(autoincrement())
   refreshToken String   @unique @db.VarChar(500)
-  userAgent    String? // trình duyệt / thiết bị
-  ipAddress    String? // IP đăng nhập
+  userAgent    String?
+  ipAddress    String?
   isRevoked    Boolean  @default(false)
-  expiresAt    DateTime // thời hạn refresh token
+  expiresAt    DateTime
 
   userId Int
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -84,8 +84,8 @@ model Session {
 
   @@index([userId])
   @@index([refreshToken])
-  @@index([userId, isRevoked]) // lấy session còn hiệu lực của user
-  @@index([expiresAt]) // dọn session hết hạn
+  @@index([userId, isRevoked])
+  @@index([expiresAt])
 }
 
 model User {
@@ -109,14 +109,14 @@ model User {
   addresses     Address[]
   notifications Notification[]
   voucherUsages VoucherUsage[]
+  sessions      Session[]
 
-  createdAt DateTime  @default(now())
-  sessions  Session[]
+  createdAt DateTime @default(now())
 
   @@index([roleId])
-  @@index([phone]) // tìm user theo SĐT
-  @@index([createdAt]) // admin sort danh sách user
-  @@index([accountType]) // filter user theo loại tài khoản
+  @@index([phone])
+  @@index([createdAt])
+  @@index([accountType])
 }
 
 model Address {
@@ -135,7 +135,7 @@ model Address {
   user   User @relation(fields: [userId], references: [id])
 
   @@index([userId])
-  @@index([userId, isDefault]) // lấy địa chỉ mặc định nhanh
+  @@index([userId, isDefault])
 }
 
 // ========================
@@ -144,11 +144,18 @@ model Address {
 
 model ProductGroup {
   id          Int     @id @default(autoincrement())
-  name        String
+  name        String // "iPhone 17 Pro Max"
   slug        String  @unique
+  series      String? // "iPhone 17" — gom nhóm nhiều model cùng dòng
   description String?
   thumbnail   String?
   isActive    Boolean @default(true)
+
+  brandId    Int
+  categoryId Int
+
+  brand    Brand    @relation(fields: [brandId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
 
   products Product[]
 
@@ -156,6 +163,10 @@ model ProductGroup {
   updatedAt DateTime @updatedAt
 
   @@index([isActive])
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([series])
+  @@index([brandId, series]) // lọc dòng SP của 1 brand
 }
 
 model Category {
@@ -163,7 +174,8 @@ model Category {
   name String @unique
   slug String @unique
 
-  products Product[]
+  products      Product[]
+  productGroups ProductGroup[]
 
   createdAt DateTime @default(now())
 }
@@ -174,14 +186,15 @@ model Brand {
   slug String  @unique
   logo String?
 
-  products Product[]
+  products      Product[]
+  productGroups ProductGroup[]
 
   createdAt DateTime @default(now())
 }
 
 model Product {
   id          Int     @id @default(autoincrement())
-  name        String
+  name        String // "iPhone 17 Pro Max"
   slug        String  @unique
   description String? @db.Text
 
@@ -189,7 +202,7 @@ model Product {
 
   brandId    Int
   categoryId Int
-  groupId    Int?
+  groupId    Int? // thuộc ProductGroup nào
 
   brand    Brand         @relation(fields: [brandId], references: [id])
   category Category      @relation(fields: [categoryId], references: [id])
@@ -211,18 +224,19 @@ model Product {
   @@index([categoryId])
   @@index([groupId])
   @@index([isActive])
-  @@index([isActive, categoryId]) // lọc sản phẩm active theo danh mục
-  @@index([isActive, brandId]) // lọc sản phẩm active theo thương hiệu
-  @@index([viewCount]) // sort theo lượt xem / phổ biến
-  @@index([createdAt]) // sort theo mới nhất
+  @@index([isActive, categoryId])
+  @@index([isActive, brandId])
+  @@index([isActive, groupId]) // lấy product active trong 1 group
+  @@index([viewCount])
+  @@index([createdAt])
 }
 
 model Variant {
   id  Int    @id @default(autoincrement())
   sku String @unique
 
-  color   String
-  storage Int
+  color   String // "Cam Vũ Trụ"
+  storage Int // GB: 256, 512, 1024, 2048
 
   price        Int
   comparePrice Int?
@@ -248,8 +262,10 @@ model Variant {
   @@index([storage])
   @@index([color])
   @@index([isActive])
-  @@index([productId, isActive]) // lấy variant active của 1 sản phẩm
-  @@index([productId, price]) // lọc giá trong 1 sản phẩm
+  @@index([productId, isActive])
+  @@index([productId, storage]) // nhóm theo dung lượng
+  @@index([productId, color]) // nhóm theo màu
+  @@index([productId, price])
 }
 
 model Imei {
@@ -268,7 +284,7 @@ model Imei {
 
   @@index([variantId])
   @@index([isSold])
-  @@index([variantId, isSold]) // tìm IMEI còn hàng của 1 variant
+  @@index([variantId, isSold])
 }
 
 model ProductImage {
@@ -284,8 +300,8 @@ model ProductImage {
 
 model ProductSpecification {
   id    Int    @id @default(autoincrement())
-  name  String
-  value String
+  name  String // "Kích thước màn hình"
+  value String // "6.9 inch"
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -322,7 +338,7 @@ model CartItem {
 
   @@unique([cartId, variantId])
   @@index([cartId])
-  @@index([variantId]) // FK thiếu - cần khi xóa variant
+  @@index([variantId])
 }
 
 // ========================
@@ -371,11 +387,11 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
-  @@index([paymentStatus]) // lọc đơn theo trạng thái thanh toán
-  @@index([voucherId]) // FK index còn thiếu
-  @@index([userId, status]) // user xem đơn theo trạng thái
-  @@index([userId, createdAt]) // user xem lịch sử đơn theo ngày
-  @@index([status, createdAt]) // admin lọc đơn theo trạng thái + thời gian
+  @@index([paymentStatus])
+  @@index([voucherId])
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
@@ -384,9 +400,8 @@ model OrderItem {
   quantity Int
   price    Int
 
-  // Snapshot thông tin lúc đặt hàng
   productName String
-  variantInfo String // vd: "Đen - 128GB"
+  variantInfo String // "Cam Vũ Trụ - 256GB"
   thumbnail   String?
 
   orderId   Int
@@ -398,7 +413,7 @@ model OrderItem {
   imei Imei?
 
   @@index([orderId])
-  @@index([variantId]) // thống kê doanh số theo variant
+  @@index([variantId])
 }
 
 model Payment {
@@ -415,8 +430,8 @@ model Payment {
   createdAt DateTime @default(now())
 
   @@index([orderId])
-  @@index([status]) // lọc payment theo trạng thái
-  @@index([transactionId]) // tra cứu theo mã giao dịch VNPay/PayPal
+  @@index([status])
+  @@index([transactionId])
 }
 
 // ========================
@@ -464,7 +479,7 @@ model VoucherUsage {
 
   @@unique([userId, voucherId, orderId])
   @@index([userId, voucherId])
-  @@index([voucherId]) // đếm tổng lượt dùng của 1 voucher
+  @@index([voucherId])
 }
 
 // ========================
@@ -484,8 +499,8 @@ model InventoryLog {
   createdAt DateTime @default(now())
 
   @@index([variantId])
-  @@index([action]) // lọc theo loại hành động
-  @@index([variantId, createdAt]) // xem lịch sử nhập/xuất kho theo thời gian
+  @@index([action])
+  @@index([variantId, createdAt])
 }
 
 // ========================
@@ -512,9 +527,9 @@ model Review {
 
   @@unique([userId, productId])
   @@index([productId])
-  @@index([userId]) // xem tất cả review của 1 user
-  @@index([productId, rating]) // lọc review theo số sao
-  @@index([productId, isHidden, createdAt]) // lấy review hiển thị, sort mới nhất
+  @@index([userId])
+  @@index([productId, rating])
+  @@index([productId, isHidden, createdAt])
 }
 
 model ReviewImage {
@@ -540,7 +555,7 @@ model ReviewReply {
   createdAt DateTime @default(now())
 
   @@index([reviewId])
-  @@index([userId]) // xem tất cả reply của 1 admin/user
+  @@index([userId])
 }
 
 // ========================
@@ -595,7 +610,7 @@ model FlashSaleItem {
 
   @@unique([flashSaleId, variantId])
   @@index([flashSaleId])
-  @@index([variantId]) // kiểm tra variant có đang flash sale không
+  @@index([variantId])
 }
 
 // ========================
@@ -616,7 +631,7 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, isRead])
-  @@index([userId, createdAt]) // lấy thông báo mới nhất của user
+  @@index([userId, createdAt])
 }
 
 // ========================

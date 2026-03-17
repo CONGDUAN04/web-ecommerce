@@ -1,28 +1,36 @@
 import { Router } from "express";
+
 import {
-    createProductGroup,
-    deleteProductGroup,
-    getProductGroupById,
     getProductGroups,
-    updateProductGroup
+    getProductGroupById,
+    createProductGroup,
+    updateProductGroup,
+    deleteProductGroup
 } from "../controllers/admin/productGroup.controller.js";
 
 import { validate } from "../middleware/validate.middleware.js";
-import { paginationSchema } from "../validations/common/query.js";
 import { idParamSchema } from "../validations/common/params.js";
-import { createProductGroupSchema, updateProductGroupSchema } from "../validations/productGroup/productGroup.schema.js";
-
+import {
+    createProductGroupSchema,
+    updateProductGroupSchema,
+    getProductGroupsQuerySchema
+} from "../validations/productGroup/productGroup.schema.js";
 
 const router = Router();
 
-router.get("/", validate(paginationSchema), getProductGroups);
+// GET /admin/product-groups?page=1&limit=10&series=iPhone 17&brandId=1
+router.get("/", validate(getProductGroupsQuerySchema), getProductGroups);
 
+// GET /admin/product-groups/:id
 router.get("/:id", validate(idParamSchema), getProductGroupById);
 
+// POST /admin/product-groups
 router.post("/", validate(createProductGroupSchema), createProductGroup);
 
+// PUT /admin/product-groups/:id
 router.put("/:id", validate(updateProductGroupSchema), updateProductGroup);
 
+// DELETE /admin/product-groups/:id
 router.delete("/:id", validate(idParamSchema), deleteProductGroup);
 
 export default router;
