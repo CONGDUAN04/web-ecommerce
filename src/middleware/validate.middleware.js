@@ -10,19 +10,17 @@ export const validate = (schema) => async (req, res, next) => {
             const fieldErrors = new Map();
 
             result.error.issues.forEach((item) => {
-                // ✅ Bỏ prefix "body" | "params" | "query"
                 const field = item.path
                     .filter((p) => !["body", "params", "query"].includes(p))
                     .join(".");
 
-                // Chỉ lấy lỗi đầu tiên của mỗi field
                 if (!fieldErrors.has(field)) {
                     fieldErrors.set(field, item.message);
                 }
             });
 
-            return res.status(422).json({ // ✅ 422
-                ErrorCode: 1,             // ✅ đồng nhất với các API khác
+            return res.status(422).json({
+                ErrorCode: 1,
                 message: "Dữ liệu không hợp lệ",
                 errors: Array.from(fieldErrors, ([field, message]) => ({
                     field,
