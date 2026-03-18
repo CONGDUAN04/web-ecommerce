@@ -1,4 +1,5 @@
 import prisma from "../../config/client.js";
+import { parsePagination } from "../../utils/pagination.js";
 
 const variantInclude = {
     product: {
@@ -27,9 +28,7 @@ export const getVariantsServices = async ({
     storage,
     color
 }) => {
-    page = Math.max(1, Number(page));
-    limit = Math.min(Math.max(1, Number(limit)), 100);
-    const skip = (page - 1) * limit;
+    const { page: p, limit: l, skip } = parsePagination({ page, limit });
 
     const where = { isActive: true };
     if (productId) where.productId = Number(productId);
@@ -40,7 +39,7 @@ export const getVariantsServices = async ({
         prisma.variant.findMany({
             where,
             skip,
-            take: limit,
+            take: l,
             orderBy: [{ productId: "asc" }, { storage: "asc" }, { color: "asc" }],
             include: variantInclude
         }),
@@ -49,7 +48,7 @@ export const getVariantsServices = async ({
 
     return {
         items,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+        pagination: { page: p, limit: l, total, totalPages: Math.ceil(total / l) }
     };
 };
 

@@ -1,4 +1,5 @@
 import prisma from "../../config/client.js";
+import { parsePagination } from "../../utils/pagination.js";
 import { generateSlug } from "../../utils/slug.js";
 
 const groupInclude = {
@@ -17,10 +18,7 @@ export const getProductGroupsServices = async ({
     brandId,
     categoryId
 }) => {
-    page = Math.max(1, Number(page));
-    limit = Math.min(Math.max(1, Number(limit)), 100);
-    const skip = (page - 1) * limit;
-
+    const { page: p, limit: l, skip } = parsePagination({ page, limit });
     const where = { isActive: true };
     if (series) where.series = series;
     if (brandId) where.brandId = Number(brandId);
@@ -30,7 +28,7 @@ export const getProductGroupsServices = async ({
         prisma.productGroup.findMany({
             where,
             skip,
-            take: limit,
+            take: l,
             orderBy: { id: "desc" },
             include: {
                 ...groupInclude,
@@ -43,10 +41,10 @@ export const getProductGroupsServices = async ({
     return {
         items,
         pagination: {
-            page,
-            limit,
+            page: p,
+            limit: l,
             total,
-            totalPages: Math.ceil(total / limit)
+            totalPages: Math.ceil(total / l)
         }
     };
 };

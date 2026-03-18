@@ -1,16 +1,17 @@
 import prisma from "../../config/client.js";
+import { parsePagination } from "../../utils/pagination.js";
 
 // GET /admin/vouchers
 export const getVoucherServices = async ({
     page = 1,
-    limit = 20,
+    limit = 10,
     search,
     type,
     isActive,
     from,
     to,
 }) => {
-    const skip = (page - 1) * limit;
+    const { page: p, limit: l, skip } = parsePagination({ page, limit });
 
     const where = {
         ...(search && {
@@ -32,7 +33,7 @@ export const getVoucherServices = async ({
         prisma.voucher.findMany({
             where,
             skip,
-            take: limit,
+            take: l,
             orderBy: { id: "desc" },
         }),
         prisma.voucher.count({ where }),
@@ -42,9 +43,9 @@ export const getVoucherServices = async ({
         items,
         meta: {
             total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
+            page: p,
+            limit: l,
+            totalPages: Math.ceil(total / l),
         },
     };
 };
@@ -130,14 +131,13 @@ export const deleteVoucherServices = async (id) => {
 export const getVoucherUsageServices = async (id, { page = 1, limit = 20 }) => {
     const voucher = await prisma.voucher.findUnique({ where: { id } });
     if (!voucher) throw new Error("Voucher không tồn tại");
-
-    const skip = (page - 1) * limit;
+    const { page: p, limit: l, skip } = parsePagination({ page, limit });
 
     const [items, total] = await Promise.all([
         prisma.voucherUsage.findMany({
             where: { voucherId: id },
             skip,
-            take: limit,
+            take: l,
             orderBy: { createdAt: "desc" },
             include: {
                 user: {
@@ -162,9 +162,9 @@ export const getVoucherUsageServices = async (id, { page = 1, limit = 20 }) => {
         items,
         meta: {
             total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
+            page: p,
+            limit: l,
+            totalPages: Math.ceil(total / l),
         },
     };
 };

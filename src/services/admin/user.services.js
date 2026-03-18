@@ -19,14 +19,12 @@ const userSelect = {
 // GET LIST
 // ─────────────────────────────────────────────
 export const getUsersServices = async ({ page = 1, limit = 10 }) => {
-    page = Math.max(1, Number(page));
-    limit = Math.min(Math.max(1, Number(limit)), 100);
-    const skip = (page - 1) * limit;
+    const { page: p, limit: l, skip } = parsePagination({ page, limit });
 
     const [items, total] = await Promise.all([
         prisma.user.findMany({
             skip,
-            take: limit,
+            take: l,
             orderBy: { id: "desc" },
             select: userSelect
         }),
@@ -36,10 +34,10 @@ export const getUsersServices = async ({ page = 1, limit = 10 }) => {
     return {
         items,
         pagination: {
-            page,
-            limit,
+            page: p,
+            limit: l,
             total,
-            totalPages: Math.ceil(total / limit)
+            totalPages: Math.ceil(total / l)
         }
     };
 };
