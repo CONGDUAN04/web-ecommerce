@@ -9,6 +9,7 @@ import dashboardRoutes from "./api.dashboard.js";
 import roleRoutes from "./api.role.js";
 import productGroupRoutes from "./api.productGroup.js";
 import variantRoutes from "../routes/admin/api.variant.js";
+import voucherRoutes from "../routes/admin/api.voucher.js";
 import inventoryRoutes from "./api.inventory.js";
 
 const router = Router();
@@ -23,6 +24,7 @@ router.use("/colors", colorRoutes);
 router.use("/product-groups", productGroupRoutes);
 router.use("/roles", roleRoutes);
 router.use("/variants", variantRoutes);
+router.use("/vouchers", voucherRoutes);
 router.use("/inventory", inventoryRoutes);
 
 export default router;
