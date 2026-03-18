@@ -12,14 +12,16 @@ import {
     createVoucherSchema,
     updateVoucherSchema,
 } from "../../validations/voucher/voucher.schema.js";
+import { paginationSchema } from "../../validations/common/query.js";
+import { idParamSchema } from "../../validations/common/params.js";
 
 const router = Router();
 
-router.get("/", getVouchers);
-router.get("/:id", getVoucherById);
-router.get("/:id/usages", getVoucherUsages);
+router.get("/", validate(paginationSchema), getVouchers);
+router.get("/:id", validate(idParamSchema), getVoucherById);
+router.get("/:id/usages", validate(idParamSchema), getVoucherUsages);
 router.post("/", validate(createVoucherSchema), createVoucher);
 router.patch("/:id", validate(updateVoucherSchema), updateVoucher);
-router.delete("/:id", deleteVoucher);
+router.delete("/:id", validate(idParamSchema), deleteVoucher);
 
 export default router;
