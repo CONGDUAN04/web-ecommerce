@@ -35,7 +35,7 @@ export const getProductGroupById = async (req, res) => {
 
 export const createProductGroup = async (req, res) => {
     try {
-        const data = await createProductGroupServices(req.validated.body);
+        const data = await createProductGroupServices(req.validated.body, req.file?.filename);
         return res.status(201).json({
             ErrorCode: 0,
             message: "Tạo product group thành công",
@@ -50,7 +50,8 @@ export const updateProductGroup = async (req, res) => {
     try {
         const data = await updateProductGroupServices(
             req.validated.params.id,
-            req.validated.body
+            req.validated.body,
+            req.file?.filename
         );
         return res.status(200).json({
             ErrorCode: 0,

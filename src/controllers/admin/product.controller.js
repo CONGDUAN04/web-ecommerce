@@ -49,7 +49,7 @@ export const getProductBySlug = async (req, res) => {
 
 export const createProduct = async (req, res) => {
     try {
-        const data = await createProductServices(req.validated.body);
+        const data = await createProductServices(req.validated.body, req.file?.filename);
         return res.status(201).json({
             ErrorCode: 0,
             message: "Tạo sản phẩm thành công",
@@ -64,7 +64,8 @@ export const updateProduct = async (req, res) => {
     try {
         const data = await updateProductServices(
             req.validated.params.id,
-            req.validated.body
+            req.validated.body,
+            req.file?.filename
         );
         return res.status(200).json({
             ErrorCode: 0,

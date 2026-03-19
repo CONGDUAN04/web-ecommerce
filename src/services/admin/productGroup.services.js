@@ -82,7 +82,7 @@ export const getProductGroupByIdServices = async (id) => {
 // CREATE
 // ========================
 
-export const createProductGroupServices = async (data) => {
+export const createProductGroupServices = async (data, thumbnail) => {
     const slug = generateSlug(data.name);
 
     const exist = await prisma.productGroup.findUnique({ where: { slug } });
@@ -106,7 +106,7 @@ export const createProductGroupServices = async (data) => {
             brandId: Number(data.brandId),
             categoryId: Number(data.categoryId),
             description: data.description ?? null,
-            thumbnail: data.thumbnail ?? null
+            thumbnail: thumbnail ?? null
         },
         include: groupInclude
     });
@@ -116,7 +116,7 @@ export const createProductGroupServices = async (data) => {
 // UPDATE
 // ========================
 
-export const updateProductGroupServices = async (id, data) => {
+export const updateProductGroupServices = async (id, data, thumbnail) => {
     id = Number(id);
 
     const exist = await prisma.productGroup.findUnique({ where: { id } });
@@ -157,7 +157,7 @@ export const updateProductGroupServices = async (id, data) => {
 
     return prisma.productGroup.update({
         where: { id },
-        data: updateData,
+        data: { ...updateData, thumbnail: thumbnail ?? updateData.thumbnail },
         include: groupInclude
     });
 };
