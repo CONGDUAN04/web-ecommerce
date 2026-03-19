@@ -10,7 +10,6 @@ import {
 
 import { validate } from "../middleware/validate.middleware.js";
 import { uploadSingleFile } from "../middleware/multer.js";
-import { uploadErrorHandler } from "../middleware/uploadErrorHandler.js";
 import { paginationSchema } from "../validations/common/query.js";
 import { idParamSchema } from "../validations/common/params.js";
 import {
@@ -30,7 +29,6 @@ router.get("/:id", validate(idParamSchema), getUserById);
 router.post(
     "/",
     uploadSingleFile("avatar", "images/avatar"),
-    uploadErrorHandler,
     validate(createUserSchema),
     createUser
 );
@@ -39,7 +37,6 @@ router.post(
 router.put(
     "/:id",
     uploadSingleFile("avatar", "images/avatar"),
-    uploadErrorHandler,
     validate(updateUserSchema),
     updateUser
 );

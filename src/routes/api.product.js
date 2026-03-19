@@ -28,7 +28,7 @@ router.get("/slug/:slug", getProductBySlug);
 // GET /admin/products/:id
 router.get("/:id", validate(idParamSchema), getProductById);
 
-// POST /admin/products
+// POST /admin/products 
 router.post("/", validate(createProductSchema), createProduct);
 
 // PUT /admin/products/:id
