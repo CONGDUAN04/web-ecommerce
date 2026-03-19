@@ -78,22 +78,19 @@ export const createBrandServices = async (data) => {
     });
 };
 
-export const updateBrandServices = async (id, data) => {
+export const updateBrandServices = async (id, data, logo) => {
     id = Number(id);
 
     const brand = await prisma.brand.findUnique({ where: { id } });
     if (!brand) throw new Error("Thương hiệu không tồn tại");
 
-    if (data.name && data.name !== brand.name) {
-        const duplicated = await prisma.brand.findUnique({
-            where: { name: data.name }
-        });
-        if (duplicated) throw new Error("Tên thương hiệu đã tồn tại");
-    }
-
     const updateData = {};
 
     if (data.name !== undefined) {
+        if (data.name !== brand.name) {
+            const duplicated = await prisma.brand.findUnique({ where: { name: data.name } });
+            if (duplicated) throw new Error("Tên thương hiệu đã tồn tại");
+        }
         const baseSlug = generateSlug(data.name);
         const slugConflict = await prisma.brand.findFirst({
             where: { slug: baseSlug, NOT: { id } }
@@ -102,18 +99,16 @@ export const updateBrandServices = async (id, data) => {
         updateData.slug = slugConflict ? `${baseSlug}-${Date.now()}` : baseSlug;
     }
 
-    if (data.logo !== undefined) updateData.logo = data.logo;
+    if (logo !== undefined) updateData.logo = logo;
+
+    if (Object.keys(updateData).length === 0) {
+        throw new Error("Cần ít nhất một trường để cập nhật");
+    }
 
     return prisma.brand.update({
         where: { id },
         data: updateData,
-        select: {
-            id: true,
-            name: true,
-            slug: true,
-            logo: true,
-            createdAt: true
-        }
+        select: { id: true, name: true, slug: true, logo: true, createdAt: true }
     });
 };
 

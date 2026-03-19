@@ -3,7 +3,7 @@ export const validate = (schema) => async (req, res, next) => {
         const result = await schema.safeParseAsync({
             params: req.params,
             query: req.query,
-            body: req.body,
+            body: req.body ?? {},
         });
 
         if (!result.success) {

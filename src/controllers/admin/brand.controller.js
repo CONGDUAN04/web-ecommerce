@@ -64,9 +64,9 @@ export const createBrand = async (req, res) => {
 export const updateBrand = async (req, res) => {
     try {
         const payload = { ...req.validated.body };
-        if (req.file) payload.logo = req.file.filename;
-
-        const brand = await updateBrandServices(req.validated.params.id, payload);
+        const logo = req.file?.filename;
+        console.log("Received logo file:", logo);
+        const brand = await updateBrandServices(req.validated.params.id, payload, logo);
 
         return res.status(200).json({
             ErrorCode: 0,

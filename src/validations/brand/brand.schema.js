@@ -16,9 +16,6 @@ export const createBrandSchema = z.object({
 export const updateBrandSchema = z.object({
     params: idParam,
     body: z.object({
-        name: nameField.optional()
-    }).refine(
-        (body) => Object.keys(body).length > 0,
-        { message: "Cần ít nhất một trường để cập nhật" }
-    )
+        name: nameField.optional(),
+    })
 });
