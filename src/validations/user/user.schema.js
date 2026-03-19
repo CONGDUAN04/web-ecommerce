@@ -51,8 +51,5 @@ export const updateUserSchema = z.object({
         fullName: fullNameField.optional(),
         phone: phoneField,
         roleId: roleIdField.optional().nullable()
-    }).refine(
-        (body) => Object.keys(body).length > 0,
-        { message: "Cần ít nhất một trường để cập nhật" }
-    )
+    })
 });

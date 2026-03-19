@@ -180,7 +180,9 @@ export const updateProductServices = async (id, data, thumbnail) => {
     if (data.description !== undefined) updateData.description = data.description;
     if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
     if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
-
+    if (Object.keys(updateData).length === 0) {
+        throw new Error("Cần ít nhất một trường để cập nhật");
+    }
     return prisma.product.update({
         where: { id },
         data: { ...updateData, thumbnail: thumbnail ?? updateData.thumbnail },

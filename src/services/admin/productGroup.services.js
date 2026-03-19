@@ -154,7 +154,9 @@ export const updateProductGroupServices = async (id, data, thumbnail) => {
         if (!category) throw new Error("Category không tồn tại");
         updateData.categoryId = Number(data.categoryId);
     }
-
+    if (Object.keys(updateData).length === 0) {
+        throw new Error("Cần ít nhất một trường để cập nhật");
+    }
     return prisma.productGroup.update({
         where: { id },
         data: { ...updateData, thumbnail: thumbnail ?? updateData.thumbnail },

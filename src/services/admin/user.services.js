@@ -128,7 +128,9 @@ export const updateUserServices = async (id, data, avatar) => {
     if (data.phone !== undefined) updateData.phone = data.phone || null;
     if (data.roleId !== undefined) updateData.roleId = data.roleId ? Number(data.roleId) : null;
     if (avatar) updateData.avatar = avatar;
-
+    if (Object.keys(updateData).length === 0) {
+        throw new Error("Cần ít nhất một trường để cập nhật");
+    }
     return prisma.user.update({
         where: { id: userId },
         data: updateData,
