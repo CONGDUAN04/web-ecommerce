@@ -16,6 +16,7 @@ import {
     updateProductSchema,
     getProductsQuerySchema
 } from "../validations/product/product.schema.js";
+import { uploadSingleFile } from "../middleware/multer.js";
 
 const router = Router();
 
@@ -29,10 +30,10 @@ router.get("/slug/:slug", getProductBySlug);
 router.get("/:id", validate(idParamSchema), getProductById);
 
 // POST /admin/products 
-router.post("/", validate(createProductSchema), createProduct);
+router.post("/", uploadSingleFile("thumbnail", "images/product"), validate(createProductSchema), createProduct);
 
 // PUT /admin/products/:id
-router.put("/:id", validate(updateProductSchema), updateProduct);
+router.put("/:id", uploadSingleFile("thumbnail", "images/product"), validate(updateProductSchema), updateProduct);
 
 // DELETE /admin/products/:id
 router.delete("/:id", validate(idParamSchema), deleteProduct);
