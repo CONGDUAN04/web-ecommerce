@@ -7,16 +7,16 @@ import {
     createProduct,
     updateProduct,
     deleteProduct
-} from "../controllers/admin/product.controller.js";
+} from "../../controllers/admin/product.controller.js";
 
-import { validate } from "../middleware/validate.middleware.js";
-import { idParamSchema } from "../validations/common/params.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { idParamSchema } from "../../validations/common/params.js";
 import {
     createProductSchema,
     updateProductSchema,
     getProductsQuerySchema
-} from "../validations/product/product.schema.js";
-import { uploadSingleFile } from "../middleware/multer.js";
+} from "../../validations/product/product.schema.js";
+import { uploadSingleFile } from "../../middleware/multer.js";
 
 const router = Router();
 

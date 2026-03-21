@@ -6,16 +6,16 @@ import {
     createUser,
     updateUser,
     deleteUser
-} from "../controllers/admin/user.controller.js";
+} from "../../controllers/admin/user.controller.js";
 
-import { validate } from "../middleware/validate.middleware.js";
-import { uploadSingleFile } from "../middleware/multer.js";
-import { paginationSchema } from "../validations/common/query.js";
-import { idParamSchema } from "../validations/common/params.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { uploadSingleFile } from "../../middleware/multer.js";
+import { paginationSchema } from "../../validations/common/query.js";
+import { idParamSchema } from "../../validations/common/params.js";
 import {
     createUserSchema,
     updateUserSchema
-} from "../validations/user/user.schema.js";
+} from "../../validations/user/user.schema.js";
 
 const router = Router();
 

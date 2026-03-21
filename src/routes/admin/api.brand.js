@@ -6,16 +6,16 @@ import {
     createBrand,
     updateBrand,
     deleteBrand
-} from "../controllers/admin/brand.controller.js";
+} from "../../controllers/admin/brand.controller.js";
 
-import { validate } from "../middleware/validate.middleware.js";
-import { uploadSingleFile } from "../middleware/multer.js";
-import { paginationSchema } from "../validations/common/query.js";
-import { idParamSchema } from "../validations/common/params.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { uploadSingleFile } from "../../middleware/multer.js";
+import { paginationSchema } from "../../validations/common/query.js";
+import { idParamSchema } from "../../validations/common/params.js";
 import {
     createBrandSchema,
     updateBrandSchema
-} from "../validations/brand/brand.schema.js";
+} from "../../validations/brand/brand.schema.js";
 
 const router = Router();
 
