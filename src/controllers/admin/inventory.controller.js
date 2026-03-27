@@ -1,72 +1,60 @@
-import { validate } from "uuid";
 import {
-    importInventoryServices,
-    exportInventoryServices,
-    adjustInventoryServices,
-    getInventoryLogsServices
+  getInventoryLogsServices,
+  getInventoryLogByIdServices,
+  getInventorySummaryServices,
+  createInventoryLogServices,
 } from "../../services/admin/inventory.services.js";
 
-export const importInventory = async (req, res) => {
-    try {
-        await importInventoryServices(req.validated.body);
-
-        res.status(200).json({
-            ErrorCode: 0,
-            message: "Nhập kho thành công"
-        });
-    } catch (error) {
-        res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
-
-export const exportInventory = async (req, res) => {
-    try {
-        await exportInventoryServices(req.validated.body);
-
-        res.status(200).json({
-            ErrorCode: 0,
-            message: "Xuất kho thành công"
-        });
-    } catch (error) {
-        res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
-
-export const adjustInventory = async (req, res) => {
-    try {
-        const data = req.body;
-        console.log(data)
-        await adjustInventoryServices(data);
-        res.status(200).json({
-            ErrorCode: 0,
-            message: "Điều chỉnh kho thành công"
-        });
-    } catch (error) {
-        res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
-
 export const getInventoryLogs = async (req, res) => {
-    try {
-        const logs = await getInventoryLogsServices(req.query);
+  try {
+    const result = await getInventoryLogsServices(req.validated.query);
+    return res.status(200).json({
+      ErrorCode: 0,
+      message: "Lấy danh sách phiếu kho thành công",
+      data: result.items,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    return res.status(500).json({ ErrorCode: 1, message: error.message });
+  }
+};
 
-        res.status(200).json({
-            ErrorCode: 0,
-            data: logs
-        });
-    } catch (error) {
-        res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
+export const getInventorySummary = async (req, res) => {
+  try {
+    const result = await getInventorySummaryServices(req.validated.query);
+    return res.status(200).json({
+      ErrorCode: 0,
+      message: "Lấy tổng quan tồn kho thành công",
+      data: result.items,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    return res.status(500).json({ ErrorCode: 1, message: error.message });
+  }
+};
+
+export const getInventoryLogById = async (req, res) => {
+  try {
+    const log = await getInventoryLogByIdServices(req.validated.params.id);
+    return res.status(200).json({
+      ErrorCode: 0,
+      message: "Lấy phiếu kho thành công",
+      data: log,
+    });
+  } catch (error) {
+    return res.status(404).json({ ErrorCode: 1, message: error.message });
+  }
+};
+
+export const createInventoryLog = async (req, res) => {
+  try {
+    const log = await createInventoryLogServices(req.validated.body);
+    return res.status(201).json({
+      ErrorCode: 0,
+      message: "Tạo phiếu kho thành công",
+      data: log,
+    });
+  } catch (error) {
+    return res.status(400).json({ ErrorCode: 1, message: error.message });
+  }
 };

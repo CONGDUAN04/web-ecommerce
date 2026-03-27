@@ -196,6 +196,7 @@ model Product {
   id          Int     @id @default(autoincrement())
   name        String
   slug        String  @unique
+  storage     Int // GB: 256, 512, 1024, 2048
   description String? @db.Text
   thumbnail   String?
 
@@ -223,19 +224,21 @@ model Product {
   @@index([categoryId])
   @@index([groupId])
   @@index([isActive])
+  @@index([storage])
   @@index([isActive, categoryId])
   @@index([isActive, brandId])
   @@index([isActive, groupId])
+  @@index([isActive, storage])
   @@index([viewCount])
   @@index([createdAt])
+  @@index([groupId, storage])
 }
 
 model Variant {
   id  Int    @id @default(autoincrement())
   sku String @unique
 
-  color   String // "Cam Vũ Trụ"
-  storage Int // GB: 256, 512, 1024, 2048
+  color String // "Cam Vũ Trụ"
 
   price        Int
   comparePrice Int?
@@ -258,11 +261,9 @@ model Variant {
 
   @@index([productId])
   @@index([price])
-  @@index([storage])
   @@index([color])
   @@index([isActive])
   @@index([productId, isActive])
-  @@index([productId, storage]) // nhóm theo dung lượng
   @@index([productId, color]) // nhóm theo màu
   @@index([productId, price])
 }
@@ -488,9 +489,11 @@ model VoucherUsage {
 model InventoryLog {
   id Int @id @default(autoincrement())
 
-  action   InventoryAction
-  quantity Int
-  note     String?
+  action         InventoryAction
+  quantity       Int
+  quantityBefore Int
+  quantityAfter  Int
+  note           String?
 
   variantId Int
   variant   Variant @relation(fields: [variantId], references: [id])

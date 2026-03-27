@@ -1,146 +1,205 @@
 import prisma from "../../config/client.js";
+import { parsePagination } from "../../utils/pagination.js";
 
-/**
- * Recalculate product quantity cache
- */
-const recalcProductQty = async (tx, productId) => {
-    const sum = await tx.colorVariant.aggregate({
-        where: { productId },
-        _sum: { quantity: true }
-    });
+export const getInventoryLogsServices = async ({
+  page = 1,
+  limit = 10,
+  variantId,
+  action,
+  startDate,
+  endDate,
+}) => {
+  const { page: p, limit: l, skip } = parsePagination({ page, limit });
 
-    await tx.product.update({
-        where: { id: productId },
-        data: {
-            quantity: sum._sum.quantity || 0
-        }
-    });
+  const where = {};
+  if (variantId) where.variantId = Number(variantId);
+  if (action) where.action = action;
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) where.createdAt.gte = new Date(startDate);
+    if (endDate) where.createdAt.lte = new Date(endDate);
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.inventoryLog.findMany({
+      where,
+      skip,
+      take: l,
+      orderBy: { id: "desc" },
+      select: {
+        id: true,
+        action: true,
+        quantity: true,
+        quantityBefore: true, // ← mới
+        quantityAfter: true, // ← mới
+        note: true,
+        createdAt: true,
+        variant: {
+          select: {
+            id: true,
+            sku: true,
+            color: true,
+            quantity: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                thumbnail: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.inventoryLog.count({ where }),
+  ]);
+
+  return {
+    items,
+    pagination: { page: p, limit: l, total, totalPages: Math.ceil(total / l) },
+  };
 };
 
-/**
- * IMPORT
- */
-export const importInventoryServices = async ({ colorId, quantity, note }) => {
+export const getInventoryLogByIdServices = async (id) => {
+  const log = await prisma.inventoryLog.findUnique({
+    where: { id: Number(id) },
+    select: {
+      id: true,
+      action: true,
+      quantity: true,
+      quantityBefore: true, // ← mới
+      quantityAfter: true, // ← mới
+      note: true,
+      createdAt: true,
+      variant: {
+        select: {
+          id: true,
+          sku: true,
+          color: true,
+          quantity: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+              thumbnail: true,
+            },
+          },
+        },
+      },
+    },
+  });
 
-    return prisma.$transaction(async tx => {
+  if (!log) throw new Error("Phiếu kho không tồn tại");
 
-        await tx.$executeRaw`
-    SELECT id FROM color_variants WHERE id=${colorId} FOR UPDATE
-   `;
-
-        const color = await tx.colorVariant.findUnique({
-            where: { id: +colorId }
-        });
-
-        if (!color) throw new Error("Color không tồn tại");
-
-        await tx.inventoryLog.create({
-            data: { action: "IMPORT", quantity, colorId, note }
-        });
-
-        await tx.colorVariant.update({
-            where: { id: +colorId },
-            data: { quantity: { increment: quantity } }
-        });
-
-        await recalcProductQty(tx, color.productId);
-    });
+  return log;
 };
 
+export const getInventorySummaryServices = async ({ page = 1, limit = 10 }) => {
+  const { page: p, limit: l, skip } = parsePagination({ page, limit });
 
-export const exportInventoryServices = async ({ colorId, quantity, note }) => {
-    colorId = Number(colorId);
-    quantity = Number(quantity);
+  const [items, total] = await Promise.all([
+    prisma.variant.findMany({
+      where: { isActive: true },
+      skip,
+      take: l,
+      orderBy: { id: "desc" },
+      select: {
+        id: true,
+        sku: true,
+        color: true,
+        quantity: true,
+        sold: true,
+        price: true,
+        product: {
+          select: {
+            id: true,
+            name: true,
+            thumbnail: true,
+          },
+        },
+        _count: {
+          select: { inventoryLogs: true },
+        },
+      },
+    }),
+    prisma.variant.count({ where: { isActive: true } }),
+  ]);
 
-    if (quantity <= 0) throw new Error("Quantity phải > 0");
-
-    return prisma.$transaction(async (tx) => {
-
-        await tx.$executeRaw`SELECT id FROM color_variants WHERE id=${colorId} FOR UPDATE`;
-
-        const color = await tx.colorVariant.findUnique({
-            where: { id: colorId }
-        });
-
-        if (!color) throw new Error("Color không tồn tại");
-
-        if (color.quantity < quantity) throw new Error("Không đủ tồn kho");
-
-        await tx.inventoryLog.create({
-            data: {
-                action: "EXPORT",
-                quantity,
-                colorId,
-                note
-            }
-        });
-
-        await tx.colorVariant.update({
-            where: { id: colorId },
-            data: {
-                quantity: { decrement: quantity }
-            }
-        });
-
-        await recalcProductQty(tx, color.productId);
-
-        return true;
-    });
+  return {
+    items,
+    pagination: { page: p, limit: l, total, totalPages: Math.ceil(total / l) },
+  };
 };
 
-export const adjustInventoryServices = async ({ colorId, quantity, note }) => {
-    colorId = Number(colorId);
-    quantity = Number(quantity);
-    return prisma.$transaction(async (tx) => {
+export const createInventoryLogServices = async ({
+  variantId,
+  action,
+  quantity,
+  note,
+}) => {
+  const variant = await prisma.variant.findUnique({
+    where: { id: Number(variantId) },
+    select: { id: true, quantity: true, sku: true },
+  });
+  if (!variant) throw new Error("Variant không tồn tại");
 
-        await tx.$executeRaw`SELECT id FROM color_variants WHERE id=${colorId} FOR UPDATE`;
+  const quantityBefore = variant.quantity;
+  let quantityAfter;
 
-        const color = await tx.colorVariant.findUnique({
-            where: { id: colorId }
-        });
+  switch (action) {
+    case "IMPORT":
+      quantityAfter = quantityBefore + quantity;
+      break;
+    case "EXPORT":
+      if (quantityBefore < quantity) {
+        throw new Error(
+          `Không đủ hàng — tồn kho hiện tại: ${quantityBefore}, cần xuất: ${quantity}`,
+        );
+      }
+      quantityAfter = quantityBefore - quantity;
+      break;
+    case "ADJUST":
+      quantityAfter = quantity;
+      break;
+    default:
+      throw new Error("Hành động không hợp lệ");
+  }
 
-        if (!color) throw new Error("Color không tồn tại");
+  const [log] = await prisma.$transaction([
+    prisma.inventoryLog.create({
+      data: {
+        variantId: variant.id,
+        action,
+        quantity,
+        quantityBefore, // ← mới
+        quantityAfter, // ← mới
+        note: note ?? null,
+      },
+      select: {
+        id: true,
+        action: true,
+        quantity: true,
+        quantityBefore: true, // ← mới
+        quantityAfter: true, // ← mới
+        note: true,
+        createdAt: true,
+        variant: {
+          select: {
+            id: true,
+            sku: true,
+            color: true,
+            product: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.variant.update({
+      where: { id: variant.id },
+      data: { quantity: quantityAfter },
+    }),
+  ]);
 
-        if (color.quantity + quantity < 0)
-            throw new Error("Adjust làm tồn kho âm");
-
-        await tx.inventoryLog.create({
-            data: {
-                action: "ADJUST",
-                quantity: Math.abs(quantity),
-                colorId,
-                note
-            }
-        });
-
-        await tx.colorVariant.update({
-            where: { id: colorId },
-            data: {
-                quantity: { increment: quantity }
-            }
-        });
-
-        await recalcProductQty(tx, color.productId);
-
-        return true;
-    });
-};
-
-
-export const getInventoryLogsServices = async ({ colorId }) => {
-    const where = {};
-    if (colorId) where.colorId = Number(colorId);
-    return prisma.inventoryLog.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        include: {
-            color: {
-                select: {
-                    id: true,
-                    color: true,
-                    quantity: true
-                }
-            }
-        }
-    });
+  return log;
 };

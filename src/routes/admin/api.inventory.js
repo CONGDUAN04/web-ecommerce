@@ -1,12 +1,32 @@
 import { Router } from "express";
-import { adjustInventory, exportInventory, getInventoryLogs, importInventory } from "../../controllers/admin/inventory.controller.js";
-import { validate } from "../../middleware/validate.middleware.js"
-import { adjustInventorySchema, inventorySchema } from "../../validations/inventory/inventory.schema.js";
+
+import {
+  getInventoryLogs,
+  getInventoryLogById,
+  getInventorySummary,
+  createInventoryLog,
+} from "../../controllers/admin/inventory.controller.js";
+
+import { validate } from "../../middleware/validate.middleware.js";
+import { paginationSchema } from "../../validations/common/query.js";
+import {
+  inventoryQuerySchema,
+  inventoryIdParamSchema,
+  createInventoryLogSchema,
+} from "../../validations/inventory/inventory.schema.js";
+
 const router = Router();
 
-router.post("/import", validate(inventorySchema), importInventory);
-router.post("/export", validate(inventorySchema), exportInventory);
-router.post("/adjust", validate(adjustInventorySchema), adjustInventory);
-router.get("/logs", getInventoryLogs);
+// GET  /api/admin/inventory/summary
+router.get("/summary", validate(paginationSchema), getInventorySummary);
+
+// GET  /api/admin/inventory
+router.get("/", validate(inventoryQuerySchema), getInventoryLogs);
+
+// GET  /api/admin/inventory/:id
+router.get("/:id", validate(inventoryIdParamSchema), getInventoryLogById);
+
+// POST /api/admin/inventory
+router.post("/", validate(createInventoryLogSchema), createInventoryLog);
 
 export default router;

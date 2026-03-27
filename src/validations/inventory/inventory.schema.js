@@ -1,56 +1,88 @@
 import { z } from "zod";
-export const inventorySchema = z.object({
-    body: z.object({
-        colorId: z
-            .string()
-            .trim()
-            .min(1, "colorId không được để trống")
-            .transform(v => Number(v))
-            .refine(v => Number.isInteger(v) && v > 0, {
-                message: "colorId phải là số nguyên dương"
-            }),
+import { idParam } from "../common/params.js";
 
-        quantity: z
-            .string()
-            .trim()
-            .min(1, "quantity không được để trống")
-            .transform(v => Number(v))
-            .refine(v => Number.isInteger(v) && v > 0, {
-                message: "quantity phải là số nguyên dương"
-            }),
+const VALID_ACTIONS = ["IMPORT", "EXPORT", "ADJUST"];
 
-        note: z
-            .string()
-            .trim()
-            .max(255, "Ghi chú tối đa 255 ký tự")
-            .optional()
-    }),
-    params: z.object({}).optional(),
-    query: z.object({}).optional()
+// ── Shared fields ────────────────────────────────────────────────────────────
+
+const variantIdField = z
+  .union([z.string(), z.number()])
+  .transform((v) => Number(v))
+  .refine((v) => Number.isInteger(v) && v > 0, {
+    message: "variantId phải là số nguyên dương",
+  });
+
+const actionField = z.enum(["IMPORT", "EXPORT", "ADJUST"], {
+  required_error: "Loại hành động không được để trống",
+  invalid_type_error: `Hành động phải là một trong: ${VALID_ACTIONS.join(", ")}`,
 });
-export const adjustInventorySchema = z.object({
-    body: z.object({
-        colorId: z
-            .string()
-            .trim()
-            .min(1, "colorId không được để trống")
-            .transform(v => Number(v))
-            .refine(v => Number.isInteger(v) && v > 0, {
-                message: "colorId phải là số nguyên dương"
-            }),
 
-        quantity: z
-            .string()
-            .trim()
-            .min(1, "quantity không được để trống")
-            .transform(v => Number(v))
-        ,
-        note: z
-            .string()
-            .trim()
-            .max(255, "Ghi chú tối đa 255 ký tự")
-            .optional()
-    }),
-    params: z.object({}).optional(),
-    query: z.object({}).optional()
+const quantityField = z
+  .union([z.string(), z.number()])
+  .transform((v) => Number(v))
+  .refine((v) => Number.isInteger(v) && v > 0, {
+    message: "Số lượng phải là số nguyên dương",
+  });
+
+const noteField = z
+  .string()
+  .max(500, "Ghi chú tối đa 500 ký tự")
+  .trim()
+  .optional();
+
+// ── Schemas ──────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/admin/inventory
+ * Tạo phiếu nhập / xuất / điều chỉnh kho
+ */
+export const createInventoryLogSchema = z.object({
+  body: z.object({
+    variantId: variantIdField,
+    action: actionField,
+    quantity: quantityField,
+    note: noteField,
+  }),
+});
+
+/**
+ * GET /api/admin/inventory
+ * Lấy danh sách log kho với phân trang & bộ lọc
+ */
+export const inventoryQuerySchema = z.object({
+  query: z.object({
+    page: z
+      .union([z.string(), z.number()])
+      .transform((v) => Number(v))
+      .refine((v) => v >= 1, { message: "page phải >= 1" })
+      .optional()
+      .default(1),
+    limit: z
+      .union([z.string(), z.number()])
+      .transform((v) => Number(v))
+      .refine((v) => v >= 1 && v <= 100, { message: "limit từ 1 – 100" })
+      .optional()
+      .default(10),
+    variantId: z
+      .union([z.string(), z.number()])
+      .transform((v) => Number(v))
+      .refine((v) => Number.isInteger(v) && v > 0)
+      .optional(),
+    action: z.enum(["IMPORT", "EXPORT", "ADJUST"]).optional(),
+    startDate: z
+      .string()
+      .datetime({ message: "startDate phải là ISO 8601" })
+      .optional(),
+    endDate: z
+      .string()
+      .datetime({ message: "endDate phải là ISO 8601" })
+      .optional(),
+  }),
+});
+
+/**
+ * GET /api/admin/inventory/:id
+ */
+export const inventoryIdParamSchema = z.object({
+  params: idParam,
 });
