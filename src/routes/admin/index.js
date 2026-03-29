@@ -10,8 +10,10 @@ import variantRoutes from "./api.variant.js";
 import voucherRoutes from "./api.voucher.js";
 import inventoryRoutes from "./api.inventory.js";
 import orderRoutes from "./api.order.js";
+import paymentRouter from "./api.payment.js";
 const router = Router();
 
+router.use("/payments", paymentRouter);
 router.use("/dashboard", dashboardRoutes);
 router.use("/users", userRoutes);
 router.use("/products", productRoutes);

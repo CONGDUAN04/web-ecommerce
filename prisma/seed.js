@@ -294,7 +294,6 @@ async function main() {
       userId: customer.id,
       orderItems: {
         create: {
-          id: 999, // fixed id để dùng cho returnItem bên dưới
           productName: "iPhone 16 Pro 256GB",
           variantColor: "Titan Đen",
           variantStorage: 256,
@@ -314,7 +313,6 @@ async function main() {
       },
     },
   });
-
   // Tạo ReturnRequest cho order4
   const orderItem4 = await prisma.orderItem.findFirst({
     where: { orderId: order4.id },
@@ -337,7 +335,39 @@ async function main() {
       },
     },
   });
-
+  const order5 = await prisma.order.create({
+    data: {
+      subtotal: 29990000,
+      discountAmount: 0,
+      shippingFee: 30000,
+      finalPrice: 30020000,
+      receiverName: "Nguyễn Văn A",
+      receiverPhone: "0911111111",
+      receiverAddress: "123 Lê Lợi, Q1, TP.HCM",
+      status: "PENDING",
+      paymentMethod: "BANKING",
+      paymentStatus: "PENDING",
+      userId: customer.id,
+      orderItems: {
+        create: {
+          productName: "iPhone 16 Pro 256GB",
+          variantColor: "Titan Đen",
+          variantStorage: 256,
+          variantSku: "IP16P-256-BLACK",
+          quantity: 1,
+          price: 29990000,
+          variantId: variantBlack.id,
+        },
+      },
+      payment: {
+        create: {
+          amount: 30020000,
+          provider: "BANKING",
+          status: "PENDING",
+        },
+      },
+    },
+  });
   console.log("✅ Seed thành công!");
   console.log(`   Admin:    admin@gmail.com / 123456`);
   console.log(`   Customer: user@gmail.com  / 123456`);
