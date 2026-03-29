@@ -11,25 +11,36 @@ datasource db {
 // ENUMS
 // ========================
 
+enum AccountType {
+  SYSTEM
+  GOOGLE
+  GITHUB
+}
+
 enum OrderStatus {
-  PENDING
-  CONFIRMED
-  SHIPPING
-  COMPLETED
-  CANCELLED
-  RETURNED
+  PENDING // Chờ xác nhận
+  CONFIRMED // Đã xác nhận
+  SHIPPING // Đang giao hàng
+  COMPLETED // Hoàn thành
+  CANCELLED // Đã hủy
+  RETURN_REQUESTED // Khách yêu cầu trả hàng
+  RETURN_APPROVED // Admin duyệt trả hàng
+  RETURNED // Hoàn trả xong
 }
 
 enum PaymentMethod {
   COD
   VNPAY
   PAYPAL
+  MOMO
+  BANKING
 }
 
 enum PaymentStatus {
   PENDING
   SUCCESS
   FAILED
+  REFUNDED
 }
 
 enum VoucherType {
@@ -38,21 +49,25 @@ enum VoucherType {
 }
 
 enum InventoryAction {
-  IMPORT
-  EXPORT
-  ADJUST
+  IMPORT // Nhập hàng
+  EXPORT // Xuất hàng (đặt hàng)
+  ADJUST // Điều chỉnh thủ công
+  RETURN // Nhập lại do hoàn hàng
 }
 
 enum NotificationType {
   ORDER
   PROMOTION
   SYSTEM
+  RETURN
 }
 
-enum AccountType {
-  SYSTEM
-  GOOGLE
-  GITHUB
+enum ReturnReason {
+  WRONG_PRODUCT
+  DEFECTIVE
+  NOT_AS_DESCRIBED
+  CHANGED_MIND
+  OTHER
 }
 
 // ========================
@@ -63,9 +78,41 @@ model Role {
   id          Int     @id @default(autoincrement())
   name        String  @unique
   description String?
-  users       User[]
+
+  users User[]
 
   createdAt DateTime @default(now())
+}
+
+model User {
+  id          Int         @id @default(autoincrement())
+  username    String      @unique
+  password    String?
+  fullName    String?
+  phone       String?
+  avatar      String?
+  accountType AccountType @default(SYSTEM)
+
+  roleId Int?
+  role   Role? @relation(fields: [roleId], references: [id])
+
+  sessions       Session[]
+  addresses      Address[]
+  cart           Cart?
+  orders         Order[]
+  reviews        Review[]
+  reviewReplies  ReviewReply[]
+  wishlists      Wishlist[]
+  notifications  Notification[]
+  voucherUsages  VoucherUsage[]
+  returnRequests ReturnRequest[]
+
+  createdAt DateTime @default(now())
+
+  @@index([roleId])
+  @@index([phone])
+  @@index([accountType])
+  @@index([createdAt])
 }
 
 model Session {
@@ -83,56 +130,22 @@ model Session {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
-  @@index([refreshToken])
   @@index([userId, isRevoked])
   @@index([expiresAt])
 }
 
-model User {
-  id       Int     @id @default(autoincrement())
-  username String  @unique
-  password String?
-
-  fullName    String?
-  phone       String?
-  avatar      String?
-  accountType AccountType @default(SYSTEM)
-
-  roleId Int?
-  role   Role? @relation(fields: [roleId], references: [id])
-
-  cart          Cart?
-  orders        Order[]
-  reviews       Review[]
-  reviewReplies ReviewReply[]
-  wishlists     Wishlist[]
-  addresses     Address[]
-  notifications Notification[]
-  voucherUsages VoucherUsage[]
-  sessions      Session[]
-
-  createdAt DateTime @default(now())
-
-  @@index([roleId])
-  @@index([phone])
-  @@index([createdAt])
-  @@index([accountType])
-}
-
 model Address {
-  id Int @id @default(autoincrement())
-
-  fullName String
-  phone    String
-  address  String
-  province String?
-  district String?
-  ward     String?
-
+  id        Int     @id @default(autoincrement())
+  fullName  String
+  phone     String
+  address   String
+  province  String?
+  district  String?
+  ward      String?
   isDefault Boolean @default(false)
 
   userId Int
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, isDefault])
@@ -142,40 +155,13 @@ model Address {
 // PRODUCT
 // ========================
 
-model ProductGroup {
-  id          Int     @id @default(autoincrement())
-  name        String // "iPhone 17 Pro Max"
-  slug        String  @unique
-  series      String? // "iPhone 17" — gom nhóm nhiều model cùng dòng
-  description String?
-  thumbnail   String?
-  isActive    Boolean @default(true)
-
-  brandId    Int
-  categoryId Int
-
-  brand    Brand    @relation(fields: [brandId], references: [id])
-  category Category @relation(fields: [categoryId], references: [id])
-
-  products Product[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isActive])
-  @@index([brandId])
-  @@index([categoryId])
-  @@index([series])
-  @@index([brandId, series]) // lọc dòng SP của 1 brand
-}
-
 model Category {
   id   Int    @id @default(autoincrement())
   name String @unique
   slug String @unique
 
-  products      Product[]
   productGroups ProductGroup[]
+  products      Product[]
 
   createdAt DateTime @default(now())
 }
@@ -186,27 +172,55 @@ model Brand {
   slug String  @unique
   logo String?
 
-  products      Product[]
   productGroups ProductGroup[]
+  products      Product[]
 
   createdAt DateTime @default(now())
 }
 
+// ProductGroup = dòng sản phẩm, vd: "iPhone 16 Series"
+model ProductGroup {
+  id          Int     @id @default(autoincrement())
+  name        String
+  slug        String  @unique
+  series      String?
+  description String?
+  thumbnail   String?
+  isActive    Boolean @default(true)
+
+  brandId    Int
+  categoryId Int
+  brand      Brand    @relation(fields: [brandId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([series])
+}
+
+// Product = 1 cấu hình cụ thể, vd: "iPhone 16 Pro 256GB"
 model Product {
   id          Int     @id @default(autoincrement())
   name        String
   slug        String  @unique
-  storage     Int // GB: 256, 512, 1024, 2048
+  storage     Int? // GB — null nếu không có storage (phụ kiện, tai nghe...)
   description String? @db.Text
   thumbnail   String?
+  viewCount   Int     @default(0)
+  isActive    Boolean @default(true)
 
-  brandId    Int // tự fill từ group khi tạo
-  categoryId Int // tự fill từ group khi tạo
-  groupId    Int // bắt buộc — không còn optional
-
-  brand    Brand        @relation(fields: [brandId], references: [id])
-  category Category     @relation(fields: [categoryId], references: [id])
-  group    ProductGroup @relation(fields: [groupId], references: [id])
+  groupId    Int
+  brandId    Int
+  categoryId Int
+  group      ProductGroup @relation(fields: [groupId], references: [id])
+  brand      Brand        @relation(fields: [brandId], references: [id])
+  category   Category     @relation(fields: [categoryId], references: [id])
 
   variants       Variant[]
   images         ProductImage[]
@@ -214,38 +228,32 @@ model Product {
   reviews        Review[]
   wishlists      Wishlist[]
 
-  viewCount Int     @default(0)
-  isActive  Boolean @default(true)
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([groupId])
   @@index([brandId])
   @@index([categoryId])
-  @@index([groupId])
   @@index([isActive])
   @@index([storage])
+  @@index([viewCount])
+  @@index([createdAt])
   @@index([isActive, categoryId])
   @@index([isActive, brandId])
   @@index([isActive, groupId])
-  @@index([isActive, storage])
-  @@index([viewCount])
-  @@index([createdAt])
   @@index([groupId, storage])
 }
 
+// Variant = màu sắc, vd: "iPhone 16 Pro 256GB - Titan Đen"
 model Variant {
-  id  Int    @id @default(autoincrement())
-  sku String @unique
-
-  color String // "Cam Vũ Trụ"
-
+  id           Int     @id @default(autoincrement())
+  sku          String  @unique
+  color        String
   price        Int
-  comparePrice Int?
-
-  quantity Int     @default(0)
-  sold     Int     @default(0)
-  isActive Boolean @default(true)
+  comparePrice Int? // Giá gạch ngang (giá gốc)
+  quantity     Int     @default(0)
+  sold         Int     @default(0)
+  isActive     Boolean @default(true)
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -253,7 +261,6 @@ model Variant {
   cartItems      CartItem[]
   orderItems     OrderItem[]
   inventoryLogs  InventoryLog[]
-  imeis          Imei[]
   flashSaleItems FlashSaleItem[]
 
   createdAt DateTime @default(now())
@@ -261,30 +268,10 @@ model Variant {
 
   @@index([productId])
   @@index([price])
-  @@index([color])
   @@index([isActive])
   @@index([productId, isActive])
-  @@index([productId, color]) // nhóm theo màu
+  @@index([productId, color])
   @@index([productId, price])
-}
-
-model Imei {
-  id   Int    @id @default(autoincrement())
-  code String @unique
-
-  isSold Boolean @default(false)
-
-  variantId Int
-  variant   Variant @relation(fields: [variantId], references: [id])
-
-  orderItemId Int?       @unique
-  orderItem   OrderItem? @relation(fields: [orderItemId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([variantId])
-  @@index([isSold])
-  @@index([variantId, isSold])
 }
 
 model ProductImage {
@@ -300,8 +287,8 @@ model ProductImage {
 
 model ProductSpecification {
   id    Int    @id @default(autoincrement())
-  name  String // "Kích thước màn hình"
-  value String // "6.9 inch"
+  name  String // vd: "Kích thước màn hình"
+  value String // vd: "6.9 inch"
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -317,24 +304,26 @@ model Cart {
   id Int @id @default(autoincrement())
 
   userId Int  @unique
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   cartItems CartItem[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CartItem {
-  id Int @id @default(autoincrement())
-
+  id       Int @id @default(autoincrement())
   quantity Int
-  price    Int
+  price    Int // Cache giá tại thời điểm thêm vào giỏ
 
   cartId    Int
   variantId Int
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant   Variant @relation(fields: [variantId], references: [id])
 
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  variant Variant @relation(fields: [variantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([cartId, variantId])
   @@index([cartId])
@@ -348,90 +337,139 @@ model CartItem {
 model Order {
   id Int @id @default(autoincrement())
 
-  totalPrice     Int
+  // Tiền
+  subtotal       Int // Tổng tiền hàng trước giảm giá
   discountAmount Int @default(0)
   shippingFee    Int @default(0)
-  finalPrice     Int
+  finalPrice     Int // Số tiền thực tế khách trả
 
+  // Thông tin giao hàng (snapshot tại thời điểm đặt)
   receiverName    String
   receiverPhone   String
   receiverAddress String
 
-  note           String?
-  cancelReason   String?
-  trackingCode   String?
-  shippingMethod String?
+  note         String?
+  cancelReason String?
+  trackingCode String?
 
   status        OrderStatus   @default(PENDING)
   paymentMethod PaymentMethod
   paymentStatus PaymentStatus @default(PENDING)
 
-  confirmedAt DateTime?
-  shippedAt   DateTime?
-  completedAt DateTime?
-  cancelledAt DateTime?
-
   userId    Int
   voucherId Int?
-
-  user    User     @relation(fields: [userId], references: [id])
-  voucher Voucher? @relation(fields: [voucherId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  voucher   Voucher? @relation(fields: [voucherId], references: [id])
 
   orderItems    OrderItem[]
-  payments      Payment[]
+  payment       Payment?
   voucherUsages VoucherUsage[]
+  returnRequest ReturnRequest?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
-  @@index([createdAt])
   @@index([paymentStatus])
   @@index([voucherId])
   @@index([userId, status])
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([createdAt])
 }
 
 model OrderItem {
   id Int @id @default(autoincrement())
 
-  quantity Int
-  price    Int
+  // Snapshot thông tin sản phẩm tại thời điểm đặt hàng
+  productName    String
+  thumbnail      String?
+  variantColor   String
+  variantStorage Int? // null cho phụ kiện không có storage
+  variantSku     String
 
-  productName String
-  variantInfo String // "Cam Vũ Trụ - 256GB"
-  thumbnail   String?
+  quantity Int
+  price    Int // Giá tại thời điểm đặt
 
   orderId   Int
   variantId Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant   Variant @relation(fields: [variantId], references: [id])
 
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant Variant @relation(fields: [variantId], references: [id])
-
-  imei Imei?
+  returnItems ReturnItem[]
 
   @@index([orderId])
   @@index([variantId])
 }
 
 model Payment {
-  id Int @id @default(autoincrement())
-
+  id            Int           @id @default(autoincrement())
   amount        Int
   provider      PaymentMethod
   status        PaymentStatus
-  transactionId String?
+  transactionId String? // Mã giao dịch từ payment gateway
 
-  orderId Int
+  // Thông tin hoàn tiền (điền khi refund)
+  refundAmount Int?
+  refundId     String? // Mã giao dịch hoàn tiền từ gateway
+  refundNote   String?
+
+  orderId Int   @unique
   order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([orderId])
   @@index([status])
   @@index([transactionId])
+}
+
+// ========================
+// RETURN REQUEST
+// ========================
+
+model ReturnRequest {
+  id Int @id @default(autoincrement())
+
+  reason   ReturnReason
+  note     String?      @db.Text
+  evidence String?      @db.Text // JSON array URL ảnh/video minh chứng
+
+  // Phản hồi của admin
+  adminNote    String?
+  refundAmount Int? // Admin quyết định hoàn bao nhiêu
+  isApproved   Boolean? // null = chưa xử lý | true = duyệt | false = từ chối
+  resolvedAt   DateTime?
+
+  orderId Int   @unique
+  userId  Int
+  order   Order @relation(fields: [orderId], references: [id])
+  user    User  @relation(fields: [userId], references: [id])
+
+  returnItems ReturnItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isApproved])
+  @@index([createdAt])
+}
+
+model ReturnItem {
+  id            Int     @id @default(autoincrement())
+  quantity      Int
+  reason        String? // Lý do cụ thể cho từng sản phẩm
+  isRestockable Boolean @default(true) // Có thể nhập lại kho không
+
+  returnRequestId Int
+  orderItemId     Int
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id])
+
+  @@index([returnRequestId])
+  @@index([orderItemId])
 }
 
 // ========================
@@ -439,29 +477,33 @@ model Payment {
 // ========================
 
 model Voucher {
-  id   Int    @id @default(autoincrement())
-  code String @unique
-
+  id   Int         @id @default(autoincrement())
+  code String      @unique
   type VoucherType
 
-  discount      Int
-  maxDiscount   Int?
-  minOrderValue Int?
+  discount      Int // Giá trị giảm (% hoặc VND tùy type)
+  maxDiscount   Int? // Giảm tối đa (dùng cho PERCENT)
+  minOrderValue Int? // Giá trị đơn hàng tối thiểu
 
   startDate DateTime
   endDate   DateTime
 
-  usageLimit   Int?
-  usagePerUser Int?
+  usageLimit   Int? // Tổng số lượt dùng
+  usagePerUser Int? // Số lượt dùng tối đa mỗi user
   usedCount    Int  @default(0)
 
   isActive Boolean @default(true)
 
+  // Giới hạn phạm vi (null = áp dụng tất cả)
+  applicableCategoryId Int?
+  applicableBrandId    Int?
+
   orders        Order[]
   voucherUsages VoucherUsage[]
 
-  @@index([startDate, endDate])
+  @@index([code])
   @@index([isActive])
+  @@index([startDate, endDate])
 }
 
 model VoucherUsage {
@@ -495,14 +537,16 @@ model InventoryLog {
   quantityAfter  Int
   note           String?
 
-  variantId Int
-  variant   Variant @relation(fields: [variantId], references: [id])
+  variantId       Int
+  returnRequestId Int? // Liên kết nếu log do hoàn hàng
+  variant         Variant @relation(fields: [variantId], references: [id])
 
   createdAt DateTime @default(now())
 
   @@index([variantId])
   @@index([action])
   @@index([variantId, createdAt])
+  @@index([returnRequestId])
 }
 
 // ========================
@@ -512,15 +556,15 @@ model InventoryLog {
 model Review {
   id Int @id @default(autoincrement())
 
-  rating   Int
-  comment  String? @db.Text
-  isHidden Boolean @default(false)
+  rating             Int
+  comment            String? @db.Text
+  isHidden           Boolean @default(false)
+  isVerifiedPurchase Boolean @default(false)
 
   productId Int
   userId    Int
-
-  product Product @relation(fields: [productId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
 
   images  ReviewImage[]
   replies ReviewReply[]
@@ -532,6 +576,7 @@ model Review {
   @@index([userId])
   @@index([productId, rating])
   @@index([productId, isHidden, createdAt])
+  @@index([isVerifiedPurchase])
 }
 
 model ReviewImage {
@@ -550,9 +595,8 @@ model ReviewReply {
 
   reviewId Int
   userId   Int
-
-  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id])
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -569,9 +613,8 @@ model Wishlist {
 
   userId    Int
   productId Int
-
-  user    User    @relation(fields: [userId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -606,9 +649,8 @@ model FlashSaleItem {
 
   flashSaleId Int
   variantId   Int
-
-  flashSale FlashSale @relation(fields: [flashSaleId], references: [id])
-  variant   Variant   @relation(fields: [variantId], references: [id])
+  flashSale   FlashSale @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
+  variant     Variant   @relation(fields: [variantId], references: [id])
 
   @@unique([flashSaleId, variantId])
   @@index([flashSaleId])
@@ -628,7 +670,7 @@ model Notification {
   isRead  Boolean          @default(false)
 
   userId Int
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -641,27 +683,26 @@ model Notification {
 // ========================
 
 model Banner {
-  id    Int     @id @default(autoincrement())
-  title String?
-  image String
-  link  String?
-
+  id        Int     @id @default(autoincrement())
+  title     String?
+  image     String
+  link      String?
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 
   createdAt DateTime @default(now())
 
   @@index([isActive])
+  @@index([sortOrder])
 }
 
 model Slider {
-  id       Int     @id @default(autoincrement())
-  image    String
-  title    String?
-  subTitle String?
-  link     String?
-
-  sortOrder Int @default(0)
+  id        Int     @id @default(autoincrement())
+  image     String
+  title     String?
+  subTitle  String?
+  link      String?
+  sortOrder Int     @default(0)
 
   createdAt DateTime @default(now())
 

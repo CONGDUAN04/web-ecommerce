@@ -23,6 +23,9 @@
     "start": "nodemon src/server.js",
     "dev": "nodemon src/server.js"
   },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "dependencies": {
     "@prisma/client": "6.19.0",
     "api-query-params": "^6.0.1",

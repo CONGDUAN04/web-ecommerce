@@ -40,7 +40,6 @@ export const getProductsServices = async ({
           select: {
             id: true,
             color: true,
-            storage: true,
             price: true,
             comparePrice: true,
             quantity: true,
@@ -93,7 +92,7 @@ export const getProductBySlugServices = async (slug) => {
       ...productInclude,
       variants: {
         where: { isActive: true },
-        orderBy: [{ storage: "asc" }, { color: "asc" }],
+        orderBy: [{ color: "asc" }],
       },
       images: { orderBy: { sortOrder: "asc" } },
       specifications: true,
