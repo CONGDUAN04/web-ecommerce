@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { idParam, positiveInt } from "../common/params.js";
-import { zBoolean } from "../common/boolean.schema.js";
+import { idParam, positiveInt } from "./params.js";
+import { zBoolean } from "./boolean.schema.js";
 
 // ========================
 // CREATE

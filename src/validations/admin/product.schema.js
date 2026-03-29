@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { idParam, positiveInt } from "../common/params.js";
-import { zBoolean } from "../common/boolean.schema.js";
-import { paginationSchema } from "../common/query.js";
+import { idParam, positiveInt } from "./params.js";
+import { zBoolean } from "./boolean.schema.js";
+import { paginationSchema } from "./query.js";
 
 export const createProductSchema = z.object({
   body: z.object({

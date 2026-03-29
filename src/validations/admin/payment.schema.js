@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idParam } from "../common/params.js";
+import { idParam } from "./params.js";
 
 export const getPaymentsSchema = z.object({
   query: z.object({

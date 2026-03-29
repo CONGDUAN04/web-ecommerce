@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idParam } from "../common/params.js";
+import { idParam } from "./params.js";
 
 const VALID_ACTIONS = ["IMPORT", "EXPORT", "ADJUST"];
 
