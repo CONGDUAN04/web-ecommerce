@@ -13,7 +13,7 @@ import {
 } from "../../controllers/admin/order.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
-import { idParamSchema } from "../../validations/common/params.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 import {
   getOrdersSchema,
   shipOrderSchema,
@@ -21,7 +21,7 @@ import {
   approveReturnSchema,
   rejectReturnSchema,
   completeReturnSchema,
-} from "../../validations/order/order.schema.js";
+} from "../../validations/admin/order.schema.js";
 
 const router = Router();
 

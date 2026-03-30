@@ -1,21 +1,21 @@
 import { Router } from "express";
 
 import {
-    getVariants,
-    getVariantById,
-    getVariantsByProductId,
-    createVariant,
-    updateVariant,
-    deleteVariant
+  getVariants,
+  getVariantById,
+  getVariantsByProductId,
+  createVariant,
+  updateVariant,
+  deleteVariant,
 } from "../../controllers/admin/variant.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
-import { idParamSchema } from "../../validations/common/params.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 import {
-    createVariantSchema,
-    updateVariantSchema,
-    getVariantsQuerySchema
-} from "../../validations/variant/variant.schema.js";
+  createVariantSchema,
+  updateVariantSchema,
+  getVariantsQuerySchema,
+} from "../../validations/admin/variant.schema.js";
 
 const router = Router();
 

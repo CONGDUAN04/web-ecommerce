@@ -1,21 +1,21 @@
 import { Router } from "express";
 
 import {
-    getProducts,
-    getProductById,
-    getProductBySlug,
-    createProduct,
-    updateProduct,
-    deleteProduct
+  getProducts,
+  getProductById,
+  getProductBySlug,
+  createProduct,
+  updateProduct,
+  deleteProduct,
 } from "../../controllers/admin/product.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
-import { idParamSchema } from "../../validations/common/params.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 import {
-    createProductSchema,
-    updateProductSchema,
-    getProductsQuerySchema
-} from "../../validations/product/product.schema.js";
+  createProductSchema,
+  updateProductSchema,
+  getProductsQuerySchema,
+} from "../../validations/admin/product.schema.js";
 import { uploadSingleFile } from "../../middleware/multer.js";
 
 const router = Router();
@@ -29,11 +29,21 @@ router.get("/slug/:slug", getProductBySlug);
 // GET /admin/products/:id
 router.get("/:id", validate(idParamSchema), getProductById);
 
-// POST /admin/products 
-router.post("/", uploadSingleFile("thumbnail", "images/product"), validate(createProductSchema), createProduct);
+// POST /admin/products
+router.post(
+  "/",
+  uploadSingleFile("thumbnail", "images/product"),
+  validate(createProductSchema),
+  createProduct,
+);
 
 // PUT /admin/products/:id
-router.put("/:id", uploadSingleFile("thumbnail", "images/product"), validate(updateProductSchema), updateProduct);
+router.put(
+  "/:id",
+  uploadSingleFile("thumbnail", "images/product"),
+  validate(updateProductSchema),
+  updateProduct,
+);
 
 // DELETE /admin/products/:id
 router.delete("/:id", validate(idParamSchema), deleteProduct);

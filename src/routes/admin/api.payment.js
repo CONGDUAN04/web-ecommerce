@@ -5,11 +5,11 @@ import {
   confirmBanking,
 } from "../../controllers/admin/payment.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
-import { idParamSchema } from "../../validations/common/params.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 import {
   getPaymentsSchema,
   confirmBankingSchema,
-} from "../../validations/payment/payment.schema.js";
+} from "../../validations/admin/payment.schema.js";
 
 const router = Router();
 

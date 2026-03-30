@@ -8,12 +8,12 @@ import {
 } from "../../controllers/admin/inventory.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
-import { paginationSchema } from "../../validations/common/query.js";
+import { paginationSchema } from "../../validations/admin/query.js";
 import {
   inventoryQuerySchema,
   inventoryIdParamSchema,
   createInventoryLogSchema,
-} from "../../validations/inventory/inventory.schema.js";
+} from "../../validations/admin/inventory.schema.js";
 
 const router = Router();
 

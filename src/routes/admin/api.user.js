@@ -1,21 +1,21 @@
 import { Router } from "express";
 
 import {
-    getUsers,
-    getUserById,
-    createUser,
-    updateUser,
-    deleteUser
+  getUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
 } from "../../controllers/admin/user.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
 import { uploadSingleFile } from "../../middleware/multer.js";
-import { paginationSchema } from "../../validations/common/query.js";
-import { idParamSchema } from "../../validations/common/params.js";
+import { paginationSchema } from "../../validations/admin/query.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 import {
-    createUserSchema,
-    updateUserSchema
-} from "../../validations/user/user.schema.js";
+  createUserSchema,
+  updateUserSchema,
+} from "../../validations/admin/user.schema.js";
 
 const router = Router();
 
@@ -27,18 +27,18 @@ router.get("/:id", validate(idParamSchema), getUserById);
 
 // POST   /api/admin/users
 router.post(
-    "/",
-    uploadSingleFile("avatar", "images/avatar"),
-    validate(createUserSchema),
-    createUser
+  "/",
+  uploadSingleFile("avatar", "images/avatar"),
+  validate(createUserSchema),
+  createUser,
 );
 
 // PUT    /api/admin/users/:id
 router.put(
-    "/:id",
-    uploadSingleFile("avatar", "images/avatar"),
-    validate(updateUserSchema),
-    updateUser
+  "/:id",
+  uploadSingleFile("avatar", "images/avatar"),
+  validate(updateUserSchema),
+  updateUser,
 );
 
 // DELETE /api/admin/users/:id

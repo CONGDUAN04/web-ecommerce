@@ -1,21 +1,21 @@
 import { Router } from "express";
 
 import {
-    getBrands,
-    getBrandById,
-    createBrand,
-    updateBrand,
-    deleteBrand
+  getBrands,
+  getBrandById,
+  createBrand,
+  updateBrand,
+  deleteBrand,
 } from "../../controllers/admin/brand.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
 import { uploadSingleFile } from "../../middleware/multer.js";
-import { paginationSchema } from "../../validations/common/query.js";
-import { idParamSchema } from "../../validations/common/params.js";
+import { paginationSchema } from "../../validations/admin/query.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 import {
-    createBrandSchema,
-    updateBrandSchema
-} from "../../validations/brand/brand.schema.js";
+  createBrandSchema,
+  updateBrandSchema,
+} from "../../validations/admin/brand.schema.js";
 
 const router = Router();
 
@@ -27,18 +27,18 @@ router.get("/:id", validate(idParamSchema), getBrandById);
 
 // POST   /api/admin/brands
 router.post(
-    "/",
-    uploadSingleFile("logo", "images/brand"),
-    validate(createBrandSchema),
-    createBrand
+  "/",
+  uploadSingleFile("logo", "images/brand"),
+  validate(createBrandSchema),
+  createBrand,
 );
 
 // PUT    /api/admin/brands/:id
 router.put(
-    "/:id",
-    uploadSingleFile("logo", "images/brand"),
-    validate(updateBrandSchema),
-    updateBrand
+  "/:id",
+  uploadSingleFile("logo", "images/brand"),
+  validate(updateBrandSchema),
+  updateBrand,
 );
 
 // DELETE /api/admin/brands/:id

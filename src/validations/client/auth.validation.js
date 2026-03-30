@@ -1,78 +1,75 @@
 import { z } from "zod";
 
 export const registerSchema = z.object({
-    body: z.object({
-        fullName: z
-            .string()
-            .min(1, "Họ tên không được để trống")
-            .max(255, "Họ tên tối đa 255 ký tự")
-            .trim(),
+  body: z
+    .object({
+      fullName: z
+        .string()
+        .min(1, "Họ tên không được để trống")
+        .max(255, "Họ tên tối đa 255 ký tự")
+        .trim(),
 
-        username: z
-            .string()
-            .email("Email không hợp lệ")
-            .min(1, "Email không được để trống")
-            .trim(),
+      username: z
+        .string()
+        .email("Email không hợp lệ")
+        .min(1, "Email không được để trống")
+        .trim(),
 
-        password: z
-            .string()
-            .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
-            .max(100, "Mật khẩu tối đa 100 ký tự"),
+      password: z
+        .string()
+        .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
+        .max(100, "Mật khẩu tối đa 100 ký tự"),
 
-        confirmPassword: z
-            .string()
-            .min(1, "Xác nhận mật khẩu không được để trống"),
-    }).refine((data) => data.password === data.confirmPassword, {
-        message: "Mật khẩu và xác nhận mật khẩu không khớp",
-        path: ["confirmPassword"],
+      confirmPassword: z
+        .string()
+        .min(1, "Xác nhận mật khẩu không được để trống"),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Mật khẩu và xác nhận mật khẩu không khớp",
+      path: ["confirmPassword"],
     }),
 });
 
 export const loginSchema = z.object({
-    body: z.object({
-        username: z
-            .string()
-            .min(1, "Email không được để trống")
-            .trim(),
+  body: z.object({
+    username: z.string().min(1, "Email không được để trống").trim(),
 
-        password: z
-            .string()
-            .min(1, "Mật khẩu không được để trống"),
-    }),
+    password: z.string().min(1, "Mật khẩu không được để trống"),
+  }),
 });
 
 export const changePasswordSchema = z.object({
-    body: z.object({
-        oldPassword: z
-            .string()
-            .min(1, "Mật khẩu cũ không được để trống"),
+  body: z
+    .object({
+      oldPassword: z.string().min(1, "Mật khẩu cũ không được để trống"),
 
-        newPassword: z
-            .string()
-            .min(6, "Mật khẩu mới phải có ít nhất 6 ký tự")
-            .max(100, "Mật khẩu mới tối đa 100 ký tự"),
+      newPassword: z
+        .string()
+        .min(6, "Mật khẩu mới phải có ít nhất 6 ký tự")
+        .max(100, "Mật khẩu mới tối đa 100 ký tự"),
 
-        confirmNewPassword: z
-            .string()
-            .min(1, "Xác nhận mật khẩu mới không được để trống"),
-    }).refine((data) => data.newPassword === data.confirmNewPassword, {
-        message: "Mật khẩu mới và xác nhận mật khẩu không khớp",
-        path: ["confirmNewPassword"],
+      confirmNewPassword: z
+        .string()
+        .min(1, "Xác nhận mật khẩu mới không được để trống"),
+    })
+    .refine((data) => data.newPassword === data.confirmNewPassword, {
+      message: "Mật khẩu mới và xác nhận mật khẩu không khớp",
+      path: ["confirmNewPassword"],
     }),
 });
 
 export const updateProfileSchema = z.object({
-    body: z.object({
-        fullName: z
-            .string()
-            .min(1, "Họ tên không được để trống")
-            .max(255, "Họ tên tối đa 255 ký tự")
-            .trim()
-            .optional(),
+  body: z.object({
+    fullName: z
+      .string()
+      .min(1, "Họ tên không được để trống")
+      .max(255, "Họ tên tối đa 255 ký tự")
+      .trim()
+      .optional(),
 
-        phone: z
-            .string()
-            .regex(/^(0|\+84)[0-9]{9,10}$/, "Số điện thoại không hợp lệ")
-            .optional(),
-    }),
+    phone: z
+      .string()
+      .regex(/^(0|\+84)[0-9]{9,10}$/, "Số điện thoại không hợp lệ")
+      .optional(),
+  }),
 });

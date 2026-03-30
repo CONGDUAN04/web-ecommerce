@@ -1,19 +1,19 @@
 import { Router } from "express";
 import {
-    getVouchers,
-    getVoucherById,
-    getVoucherUsages,
-    createVoucher,
-    updateVoucher,
-    deleteVoucher,
+  getVouchers,
+  getVoucherById,
+  getVoucherUsages,
+  createVoucher,
+  updateVoucher,
+  deleteVoucher,
 } from "../../controllers/admin/voucher.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
-    createVoucherSchema,
-    updateVoucherSchema,
-} from "../../validations/voucher/voucher.schema.js";
-import { paginationSchema } from "../../validations/common/query.js";
-import { idParamSchema } from "../../validations/common/params.js";
+  createVoucherSchema,
+  updateVoucherSchema,
+} from "../../validations/admin/voucher.schema.js";
+import { paginationSchema } from "../../validations/admin/query.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 
 const router = Router();
 

@@ -1,20 +1,20 @@
 import { Router } from "express";
 
 import {
-    getCategories,
-    getCategoryById,
-    createCategory,
-    updateCategory,
-    deleteCategory
+  getCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 } from "../../controllers/admin/category.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
-import { paginationSchema } from "../../validations/common/query.js";
-import { idParamSchema } from "../../validations/common/params.js";
+import { paginationSchema } from "../../validations/admin/query.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 import {
-    createCategorySchema,
-    updateCategorySchema
-} from "../../validations/category/category.schema.js";
+  createCategorySchema,
+  updateCategorySchema,
+} from "../../validations/admin/category.schema.js";
 
 const router = Router();
 

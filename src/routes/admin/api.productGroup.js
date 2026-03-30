@@ -1,20 +1,20 @@
 import { Router } from "express";
 
 import {
-    getProductGroups,
-    getProductGroupById,
-    createProductGroup,
-    updateProductGroup,
-    deleteProductGroup
+  getProductGroups,
+  getProductGroupById,
+  createProductGroup,
+  updateProductGroup,
+  deleteProductGroup,
 } from "../../controllers/admin/productGroup.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
-import { idParamSchema } from "../../validations/common/params.js";
+import { idParamSchema } from "../../validations/admin/params.js";
 import {
-    createProductGroupSchema,
-    updateProductGroupSchema,
-    getProductGroupsQuerySchema
-} from "../../validations/productGroup/productGroup.schema.js";
+  createProductGroupSchema,
+  updateProductGroupSchema,
+  getProductGroupsQuerySchema,
+} from "../../validations/admin/productGroup.schema.js";
 import { uploadSingleFile } from "../../middleware/multer.js";
 
 const router = Router();
@@ -26,10 +26,20 @@ router.get("/", validate(getProductGroupsQuerySchema), getProductGroups);
 router.get("/:id", validate(idParamSchema), getProductGroupById);
 
 // POST /admin/product-groups
-router.post("/", uploadSingleFile("thumbnail", "images/product-group"), validate(createProductGroupSchema), createProductGroup);
+router.post(
+  "/",
+  uploadSingleFile("thumbnail", "images/product-group"),
+  validate(createProductGroupSchema),
+  createProductGroup,
+);
 
 // PUT /admin/product-groups/:id
-router.put("/:id", uploadSingleFile("thumbnail", "images/product-group"), validate(updateProductGroupSchema), updateProductGroup);
+router.put(
+  "/:id",
+  uploadSingleFile("thumbnail", "images/product-group"),
+  validate(updateProductGroupSchema),
+  updateProductGroup,
+);
 
 // DELETE /admin/product-groups/:id
 router.delete("/:id", validate(idParamSchema), deleteProductGroup);
