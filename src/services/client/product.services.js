@@ -1,72 +1,10 @@
 import prisma from "../../config/client.js";
-import { parsePagination } from "../../utils/pagination.js";
 
-// ========================
-// HELPERS
-// ========================
+import { parsePagination, buildPagination } from "../../utils/pagination.js";
+import { attachReviewStats } from "../../utils/review.js";
+import { applySortInMemory } from "../../utils/sort.js";
 
-const buildPagination = (total, page, limit) => ({
-  total,
-  page,
-  limit,
-  totalPages: Math.ceil(total / limit),
-});
-
-const productSelect = {
-  id: true,
-  name: true,
-  slug: true,
-  storage: true,
-  thumbnail: true,
-  viewCount: true,
-  category: { select: { id: true, name: true, slug: true } },
-  brand: { select: { id: true, name: true, slug: true, logo: true } },
-  group: { select: { id: true, name: true, slug: true, series: true } },
-  variants: {
-    where: { isActive: true },
-    select: {
-      id: true,
-      sku: true,
-      color: true,
-      price: true,
-      comparePrice: true,
-      quantity: true,
-      sold: true,
-    },
-  },
-  reviews: {
-    select: { rating: true },
-  },
-};
-
-const attachReviewStats = (products) =>
-  products.map((p) => {
-    const ratings = p.reviews.map((r) => r.rating);
-    const avgRating =
-      ratings.length > 0
-        ? parseFloat(
-            (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1),
-          )
-        : 0;
-    const { reviews, ...rest } = p;
-    return { ...rest, avgRating, reviewCount: ratings.length };
-  });
-
-const getMinPrice = (p) =>
-  p.variants.length > 0 ? Math.min(...p.variants.map((v) => v.price)) : 0;
-
-const getTotalSold = (p) => p.variants.reduce((sum, v) => sum + v.sold, 0);
-
-const applySortInMemory = (items, sort) => {
-  const sorted = [...items];
-  if (sort === "price-asc")
-    sorted.sort((a, b) => getMinPrice(a) - getMinPrice(b));
-  if (sort === "price-desc")
-    sorted.sort((a, b) => getMinPrice(b) - getMinPrice(a));
-  if (sort === "best-seller")
-    sorted.sort((a, b) => getTotalSold(b) - getTotalSold(a));
-  return sorted;
-};
+import { productSelect } from "../../constants/product.select.js";
 
 // ========================
 // GET PRODUCTS
@@ -74,6 +12,7 @@ const applySortInMemory = (items, sort) => {
 
 export const getProductsService = async (query) => {
   const { page, limit, skip } = parsePagination(query);
+
   const {
     categoryId,
     brandId,
@@ -103,7 +42,6 @@ export const getProductsService = async (query) => {
       : {}),
   };
 
-  // Chỉ sort DB được với các field trực tiếp
   const dbOrderBy = {
     newest: { createdAt: "desc" },
     oldest: { createdAt: "asc" },
@@ -155,9 +93,11 @@ export const getProductBySlugService = async (slug) => {
     throw new Error("Sản phẩm không tồn tại");
   }
 
-  // Tăng viewCount bất đồng bộ, không block response
   prisma.product
-    .update({ where: { slug }, data: { viewCount: { increment: 1 } } })
+    .update({
+      where: { slug },
+      data: { viewCount: { increment: 1 } },
+    })
     .catch(() => {});
 
   const [result] = attachReviewStats([product]);
@@ -173,7 +113,10 @@ export const searchProductsService = async (query) => {
   const { q = "" } = query;
 
   if (!q.trim()) {
-    return { items: [], pagination: buildPagination(0, page, limit) };
+    return {
+      items: [],
+      pagination: buildPagination(0, page, limit),
+    };
   }
 
   const where = {
@@ -211,12 +154,16 @@ export const searchProductsService = async (query) => {
 export const getRelatedProductsService = async (slug) => {
   const product = await prisma.product.findUnique({
     where: { slug },
-    select: { id: true, groupId: true, categoryId: true, brandId: true },
+    select: {
+      id: true,
+      groupId: true,
+      categoryId: true,
+      brandId: true,
+    },
   });
 
   if (!product) throw new Error("Sản phẩm không tồn tại");
 
-  // Ưu tiên 1: cùng group
   let related = await prisma.product.findMany({
     where: {
       isActive: true,
@@ -228,9 +175,9 @@ export const getRelatedProductsService = async (slug) => {
     take: 8,
   });
 
-  // Ưu tiên 2: cùng brand + category
   if (related.length < 8) {
     const exclude = [product.id, ...related.map((p) => p.id)];
+
     const more = await prisma.product.findMany({
       where: {
         isActive: true,
@@ -242,12 +189,13 @@ export const getRelatedProductsService = async (slug) => {
       orderBy: { viewCount: "desc" },
       take: 8 - related.length,
     });
+
     related = [...related, ...more];
   }
 
-  // Ưu tiên 3: cùng category
   if (related.length < 8) {
     const exclude = [product.id, ...related.map((p) => p.id)];
+
     const more = await prisma.product.findMany({
       where: {
         isActive: true,
@@ -258,6 +206,7 @@ export const getRelatedProductsService = async (slug) => {
       orderBy: { viewCount: "desc" },
       take: 8 - related.length,
     });
+
     related = [...related, ...more];
   }
 
@@ -287,8 +236,12 @@ export const getProductGroupsService = async (query) => {
         slug: true,
         series: true,
         thumbnail: true,
-        brand: { select: { id: true, name: true, slug: true, logo: true } },
-        category: { select: { id: true, name: true, slug: true } },
+        brand: {
+          select: { id: true, name: true, slug: true, logo: true },
+        },
+        category: {
+          select: { id: true, name: true, slug: true },
+        },
         products: {
           where: { isActive: true },
           select: {
@@ -310,8 +263,11 @@ export const getProductGroupsService = async (query) => {
 
   const formatted = items.map((g) => {
     const allPrices = g.products.flatMap((p) => p.variants).map((v) => v.price);
+
     const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : null;
+
     const { products, ...rest } = g;
+
     return { ...rest, minPrice };
   });
 
@@ -338,8 +294,12 @@ export const getProductGroupBySlugService = async (slug, query = {}) => {
       description: true,
       thumbnail: true,
       isActive: true,
-      brand: { select: { id: true, name: true, slug: true, logo: true } },
-      category: { select: { id: true, name: true, slug: true } },
+      brand: {
+        select: { id: true, name: true, slug: true, logo: true },
+      },
+      category: {
+        select: { id: true, name: true, slug: true },
+      },
       products: {
         where: { isActive: true },
         select: {
@@ -362,7 +322,6 @@ export const getProductGroupBySlugService = async (slug, query = {}) => {
     throw new Error("Dòng sản phẩm không tồn tại");
   }
 
-  // Lấy filter options trước khi filter
   const storageOptions = [
     ...new Set(group.products.map((p) => p.storage).filter(Boolean)),
   ].sort((a, b) => a - b);
@@ -371,7 +330,6 @@ export const getProductGroupBySlugService = async (slug, query = {}) => {
     ...new Set(group.products.flatMap((p) => p.variants.map((v) => v.color))),
   ];
 
-  // Filter products
   let products = group.products;
 
   if (storage) {
@@ -380,15 +338,21 @@ export const getProductGroupBySlugService = async (slug, query = {}) => {
 
   products = products.map((p) => {
     let variants = p.variants;
+
     if (color) {
       variants = variants.filter((v) =>
         v.color.toLowerCase().includes(color.toLowerCase()),
       );
     }
-    if (minPrice)
+
+    if (minPrice) {
       variants = variants.filter((v) => v.price >= parseInt(minPrice));
-    if (maxPrice)
+    }
+
+    if (maxPrice) {
       variants = variants.filter((v) => v.price <= parseInt(maxPrice));
+    }
+
     return { ...p, variants };
   });
 
