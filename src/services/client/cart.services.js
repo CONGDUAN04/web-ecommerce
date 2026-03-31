@@ -28,7 +28,7 @@ export const getCartService = async (userId) => {
 // ========================
 
 export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
-  return prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const variant = await tx.variant.findUnique({
       where: { id: variantId },
       select: {
@@ -55,38 +55,27 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
     });
 
     const existingItem = await tx.cartItem.findUnique({
-      where: {
-        cartId_variantId: {
-          cartId: cart.id,
-          variantId,
-        },
-      },
+      where: { cartId_variantId: { cartId: cart.id, variantId } },
     });
 
     if (existingItem) {
       const newQty = existingItem.quantity + quantity;
-
       if (newQty > variant.quantity) {
         throw new Error(`Sản phẩm chỉ còn ${variant.quantity} trong kho`);
       }
-
       await tx.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: newQty, price: variant.price },
       });
     } else {
       await tx.cartItem.create({
-        data: {
-          cartId: cart.id,
-          variantId,
-          quantity,
-          price: variant.price,
-        },
+        data: { cartId: cart.id, variantId, quantity, price: variant.price },
       });
     }
-
-    return getCartService(userId);
   });
+
+  // Gọi NGOÀI transaction sau khi đã commit
+  return getCartService(userId);
 };
 
 // ========================
@@ -94,17 +83,12 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
 // ========================
 
 export const updateCartItemService = async (userId, itemId, quantity) => {
-  return prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const item = await tx.cartItem.findFirst({
-      where: {
-        id: parseInt(itemId),
-        cart: { userId },
-      },
+      where: { id: parseInt(itemId), cart: { userId } },
       select: {
         id: true,
-        variant: {
-          select: { quantity: true, price: true },
-        },
+        variant: { select: { quantity: true, price: true } },
       },
     });
 
@@ -116,14 +100,12 @@ export const updateCartItemService = async (userId, itemId, quantity) => {
 
     await tx.cartItem.update({
       where: { id: item.id },
-      data: {
-        quantity,
-        price: item.variant.price,
-      },
+      data: { quantity, price: item.variant.price },
     });
-
-    return getCartService(userId);
   });
+
+  // Gọi NGOÀI transaction sau khi đã commit
+  return getCartService(userId);
 };
 
 // ========================

@@ -1,0 +1,42 @@
+export const orderSelect = {
+  id: true,
+  subtotal: true,
+  discountAmount: true,
+  shippingFee: true,
+  finalPrice: true,
+  receiverName: true,
+  receiverPhone: true,
+  receiverAddress: true,
+  note: true,
+  cancelReason: true,
+  trackingCode: true,
+  status: true,
+  paymentMethod: true,
+  paymentStatus: true,
+  createdAt: true,
+  updatedAt: true,
+  voucher: {
+    select: { id: true, code: true, type: true, discount: true },
+  },
+  orderItems: {
+    select: {
+      id: true,
+      productName: true,
+      thumbnail: true,
+      variantColor: true,
+      variantStorage: true,
+      variantSku: true,
+      quantity: true,
+      price: true,
+    },
+  },
+  payment: {
+    select: {
+      id: true,
+      amount: true,
+      provider: true,
+      status: true,
+      transactionId: true,
+    },
+  },
+};
