@@ -28,7 +28,7 @@ app.use(express.static("public"));
 app.use("/api", authRouter);
 
 /* ---------- USER (login required) ---------- */
-app.use("/api/client", checkValidJWT, clientRoutes);
+app.use("/api", checkValidJWT, clientRoutes);
 
 /* ---------- ADMIN (admin required) ---------- */
 app.use("/api/admin", checkValidJWT, isAdmin, adminRoutes);
