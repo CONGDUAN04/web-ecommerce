@@ -81,12 +81,13 @@ export const getOrdersSchema = z.object({
 // ========================
 export const shipOrderSchema = z.object({
   params: idParam,
+  // FIX #5: trackingCode required, không để optional vì user cần để track đơn
   body: z.object({
     trackingCode: z
-      .string()
-      .max(100, "Tracking code tối đa 100 ký tự")
-      .trim()
-      .optional(),
+      .string({ required_error: "Vui lòng nhập mã vận đơn" })
+      .min(1, "Mã vận đơn không được để trống")
+      .max(100, "Mã vận đơn tối đa 100 ký tự")
+      .trim(),
   }),
 });
 

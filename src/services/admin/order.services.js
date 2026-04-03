@@ -56,6 +56,7 @@ const orderDetailSelect = {
   note: true,
   cancelReason: true,
   updatedAt: true,
+  userId: true,
   orderItems: {
     select: {
       id: true,
@@ -71,7 +72,6 @@ const orderDetailSelect = {
       },
     },
   },
-  // 1:1
   payment: {
     select: {
       id: true,
@@ -86,7 +86,6 @@ const orderDetailSelect = {
       updatedAt: true,
     },
   },
-  // 1:1
   returnRequest: {
     select: {
       id: true,
@@ -157,11 +156,12 @@ export const getOrdersServices = async ({
           },
         }
       : {}),
+    // FIX #6: thêm mode insensitive để tương thích PostgreSQL sau này
     ...(keyword && {
       OR: [
-        { receiverName: { contains: keyword } },
-        { receiverPhone: { contains: keyword } },
-        { trackingCode: { contains: keyword } },
+        { receiverName: { contains: keyword, mode: "insensitive" } },
+        { receiverPhone: { contains: keyword, mode: "insensitive" } },
+        { trackingCode: { contains: keyword, mode: "insensitive" } },
       ],
     }),
   };
@@ -197,11 +197,25 @@ export const confirmOrderServices = async (id) => {
   const order = await findOrderOrThrow(id);
   validateTransition(order.status, "CONFIRMED");
 
-  return prisma.order.update({
-    where: { id },
-    data: { status: "CONFIRMED" },
-    select: orderDetailSelect,
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id },
+      data: { status: "CONFIRMED" },
+    });
+
+    // FIX #4: notification
+    await tx.notification.create({
+      data: {
+        userId: order.userId,
+        type: "ORDER",
+        title: "Đơn hàng đã được xác nhận",
+        content: `Đơn hàng #${id} của bạn đã được xác nhận và đang được chuẩn bị.`,
+        link: `/orders/${id}`,
+      },
+    });
   });
+
+  return getOrderByIdServices(id);
 };
 
 export const shipOrderServices = async (id, { trackingCode }) => {
@@ -209,26 +223,63 @@ export const shipOrderServices = async (id, { trackingCode }) => {
   const order = await findOrderOrThrow(id);
   validateTransition(order.status, "SHIPPING");
 
-  return prisma.order.update({
-    where: { id },
-    data: {
-      status: "SHIPPING",
-      ...(trackingCode && { trackingCode }),
-    },
-    select: orderDetailSelect,
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id },
+      data: {
+        status: "SHIPPING",
+        ...(trackingCode && { trackingCode }),
+      },
+    });
+
+    // FIX #4: notification
+    await tx.notification.create({
+      data: {
+        userId: order.userId,
+        type: "ORDER",
+        title: "Đơn hàng đang được giao",
+        content: `Đơn hàng #${id} đang trên đường giao đến bạn.${trackingCode ? ` Mã vận đơn: ${trackingCode}` : ""}`,
+        link: `/orders/${id}`,
+      },
+    });
   });
+
+  return getOrderByIdServices(id);
 };
 
 export const completeOrderServices = async (id) => {
   id = Number(id);
+
+  // FIX #2: lấy thêm paymentStatus để không override sai
   const order = await findOrderOrThrow(id);
   validateTransition(order.status, "COMPLETED");
 
-  return prisma.order.update({
-    where: { id },
-    data: { status: "COMPLETED", paymentStatus: "SUCCESS" },
-    select: orderDetailSelect,
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id },
+      data: {
+        status: "COMPLETED",
+        // Chỉ set SUCCESS nếu đang PENDING (COD giao thành công)
+        // Không override nếu đã SUCCESS (online payment) hoặc REFUNDED
+        ...(order.paymentStatus === "PENDING" && {
+          paymentStatus: "SUCCESS",
+        }),
+      },
+    });
+
+    // FIX #4: notification
+    await tx.notification.create({
+      data: {
+        userId: order.userId,
+        type: "ORDER",
+        title: "Đơn hàng hoàn thành",
+        content: `Đơn hàng #${id} đã được giao thành công. Cảm ơn bạn đã mua hàng!`,
+        link: `/orders/${id}`,
+      },
+    });
   });
+
+  return getOrderByIdServices(id);
 };
 
 export const cancelOrderServices = async (id, { cancelReason }) => {
@@ -274,8 +325,24 @@ export const cancelOrderServices = async (id, { cancelReason }) => {
       data: {
         status: "CANCELLED",
         cancelReason: cancelReason ?? null,
+        // FIX #3: PENDING → FAILED chỉ khi đang PENDING, không đổi nếu đã ở trạng thái khác
         paymentStatus:
-          order.paymentStatus === "SUCCESS" ? "REFUNDED" : "FAILED",
+          order.paymentStatus === "SUCCESS"
+            ? "REFUNDED"
+            : order.paymentStatus === "PENDING"
+              ? "FAILED"
+              : order.paymentStatus,
+      },
+    });
+
+    // FIX #4: notification
+    await tx.notification.create({
+      data: {
+        userId: order.userId,
+        type: "ORDER",
+        title: "Đơn hàng đã bị huỷ",
+        content: `Đơn hàng #${id} đã bị huỷ.${cancelReason ? ` Lý do: ${cancelReason}` : ""}`,
+        link: `/orders/${id}`,
       },
     });
   });
@@ -319,7 +386,6 @@ export const approveReturnServices = async (
     throw new Error("Yêu cầu hoàn trả đã được xử lý trước đó");
 
   await prisma.$transaction(async (tx) => {
-    // Cập nhật ReturnRequest
     await tx.returnRequest.update({
       where: { id: returnRequest.id },
       data: {
@@ -360,15 +426,33 @@ export const approveReturnServices = async (
       });
     }
 
-    // Ghi refundAmount vào Payment (update record hiện có, không tạo mới)
-    await tx.payment.update({
+    // FIX #1: dùng upsert thay vì update để tránh crash khi chưa có Payment record (đơn COD)
+    await tx.payment.upsert({
       where: { orderId: id },
-      data: { refundAmount },
+      update: { refundAmount },
+      create: {
+        orderId: id,
+        amount: order.finalPrice,
+        provider: order.paymentMethod,
+        status: "PENDING",
+        refundAmount,
+      },
     });
 
     await tx.order.update({
       where: { id },
       data: { status: "RETURN_APPROVED" },
+    });
+
+    // FIX #4: notification
+    await tx.notification.create({
+      data: {
+        userId: order.userId,
+        type: "RETURN",
+        title: "Yêu cầu hoàn trả được duyệt",
+        content: `Yêu cầu hoàn trả đơn hàng #${id} đã được duyệt. Số tiền hoàn: ${refundAmount.toLocaleString("vi-VN")}đ.`,
+        link: `/orders/${id}`,
+      },
     });
   });
 
@@ -379,8 +463,13 @@ export const approveReturnServices = async (
 export const rejectReturnServices = async (id, { adminNote }) => {
   id = Number(id);
 
+  // FIX #7: include returnItems để consistent, dù reject không cần dùng
   const order = await findOrderOrThrow(id, {
-    include: { returnRequest: true },
+    include: {
+      returnRequest: {
+        include: { returnItems: true },
+      },
+    },
   });
 
   validateTransition(order.status, "COMPLETED");
@@ -400,6 +489,17 @@ export const rejectReturnServices = async (id, { adminNote }) => {
       where: { id },
       data: { status: "COMPLETED" },
     });
+
+    // FIX #4: notification
+    await tx.notification.create({
+      data: {
+        userId: order.userId,
+        type: "RETURN",
+        title: "Yêu cầu hoàn trả bị từ chối",
+        content: `Yêu cầu hoàn trả đơn hàng #${id} đã bị từ chối.${adminNote ? ` Lý do: ${adminNote}` : ""}`,
+        link: `/orders/${id}`,
+      },
+    });
   });
 
   return getOrderByIdServices(id);
@@ -415,10 +515,18 @@ export const completeReturnServices = async (
   validateTransition(order.status, "RETURNED");
 
   await prisma.$transaction(async (tx) => {
-    // Đánh dấu Payment đã hoàn tiền
-    await tx.payment.update({
+    // FIX #1: dùng upsert để tránh crash nếu chưa có Payment record
+    await tx.payment.upsert({
       where: { orderId: id },
-      data: {
+      update: {
+        status: "REFUNDED",
+        ...(refundId && { refundId }),
+        ...(refundNote && { refundNote }),
+      },
+      create: {
+        orderId: id,
+        amount: order.finalPrice,
+        provider: order.paymentMethod,
         status: "REFUNDED",
         ...(refundId && { refundId }),
         ...(refundNote && { refundNote }),
@@ -428,6 +536,17 @@ export const completeReturnServices = async (
     await tx.order.update({
       where: { id },
       data: { status: "RETURNED", paymentStatus: "REFUNDED" },
+    });
+
+    // FIX #4: notification
+    await tx.notification.create({
+      data: {
+        userId: order.userId,
+        type: "RETURN",
+        title: "Hoàn tiền thành công",
+        content: `Đơn hàng #${id} đã được hoàn trả thành công. Tiền đã được hoàn về tài khoản của bạn.`,
+        link: `/orders/${id}`,
+      },
     });
   });
 
