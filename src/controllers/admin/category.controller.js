@@ -1,95 +1,37 @@
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import { ApiResponse } from "../../utils/response.js";
 import {
-    getCategoriesServices,
-    getCategoryByIdServices,
-    createCategoryServices,
-    updateCategoryServices,
-    deleteCategoryServices
+  getCategoriesServices,
+  getCategoryByIdServices,
+  createCategoryServices,
+  updateCategoryServices,
+  deleteCategoryServices,
 } from "../../services/admin/category.services.js";
 
-export const getCategories = async (req, res) => {
-    try {
-        const result = await getCategoriesServices(req.validated.query);
+export const getCategories = asyncHandler(async (req, res) => {
+  const result = await getCategoriesServices(req.validated.query);
+  return ApiResponse.success(res, result.items, { meta: result.pagination });
+});
 
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Lấy danh sách danh mục thành công",
-            data: result.items,
-            pagination: result.pagination
-        });
-    } catch (error) {
-        return res.status(500).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
+export const getCategoryById = asyncHandler(async (req, res) => {
+  const category = await getCategoryByIdServices(req.validated.params.id);
+  return ApiResponse.success(res, category);
+});
 
-export const getCategoryById = async (req, res) => {
-    try {
-        const category = await getCategoryByIdServices(req.validated.params.id);
+export const createCategory = asyncHandler(async (req, res) => {
+  const category = await createCategoryServices(req.validated.body);
+  return ApiResponse.created(res, category);
+});
 
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Lấy danh mục thành công",
-            data: category
-        });
-    } catch (error) {
-        return res.status(404).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
+export const updateCategory = asyncHandler(async (req, res) => {
+  const category = await updateCategoryServices(
+    req.validated.params.id,
+    req.validated.body,
+  );
+  return ApiResponse.updated(res, category);
+});
 
-export const createCategory = async (req, res) => {
-    try {
-        const category = await createCategoryServices(req.validated.body);
-
-        return res.status(201).json({
-            ErrorCode: 0,
-            message: "Tạo danh mục thành công",
-            data: category
-        });
-    } catch (error) {
-        return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
-
-export const updateCategory = async (req, res) => {
-    try {
-        const category = await updateCategoryServices(
-            req.validated.params.id,
-            req.validated.body
-        );
-
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Cập nhật danh mục thành công",
-            data: category
-        });
-    } catch (error) {
-        return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
-
-export const deleteCategory = async (req, res) => {
-    try {
-        await deleteCategoryServices(req.validated.params.id);
-
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Xóa danh mục thành công"
-        });
-    } catch (error) {
-        return res.status(400).json({
-            ErrorCode: 1,
-            message: error.message
-        });
-    }
-};
+export const deleteCategory = asyncHandler(async (req, res) => {
+  await deleteCategoryServices(req.validated.params.id);
+  return ApiResponse.deleted(res);
+});
