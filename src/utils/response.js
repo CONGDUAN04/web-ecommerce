@@ -14,6 +14,9 @@ export const ApiResponse = {
   created(res, data, message = "Tạo thành công") {
     return this.success(res, data, { message, statusCode: 201 });
   },
+  add(res, data, message = "Thêm thành công") {
+    return this.success(res, data, { message, statusCode: 201 });
+  },
 
   updated(res, data, message = "Cập nhật thành công") {
     return this.success(res, data, { message, statusCode: 200 });
