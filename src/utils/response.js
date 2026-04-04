@@ -12,24 +12,15 @@ export const ApiResponse = {
   },
 
   created(res, data, message = "Tạo thành công") {
-    return this.success(res, data, {
-      message,
-      statusCode: 201,
-    });
+    return this.success(res, data, { message, statusCode: 201 });
   },
 
   updated(res, data, message = "Cập nhật thành công") {
-    return this.success(res, data, {
-      message,
-      statusCode: 200,
-    });
+    return this.success(res, data, { message, statusCode: 200 });
   },
 
   deleted(res, message = "Xóa thành công") {
-    return this.success(res, null, {
-      message,
-      statusCode: 200,
-    });
+    return this.success(res, null, { message, statusCode: 200 });
   },
 
   noContent(res) {
@@ -37,11 +28,6 @@ export const ApiResponse = {
   },
 
   error(res, message, statusCode = 400, code = "ERROR") {
-    return res.status(statusCode).json({
-      error: {
-        code,
-        message,
-      },
-    });
+    return res.status(statusCode).json({ error: { code, message } });
   },
 };

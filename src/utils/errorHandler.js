@@ -3,30 +3,26 @@ import { AppError } from "../utils/AppError.js";
 export const errorHandler = (err, req, res, next) => {
   // Lỗi business — có statusCode rõ ràng
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+    const body = {
       error: {
         code: err.code,
         message: err.message,
+        ...(err.errors && { errors: err.errors }),
       },
-    });
+    };
+    return res.status(err.statusCode).json(body);
   }
 
   // Lỗi Prisma
   if (err.code === "P2002") {
     return res.status(409).json({
-      error: {
-        code: "DUPLICATE_ENTRY",
-        message: "Dữ liệu đã tồn tại",
-      },
+      error: { code: "DUPLICATE_ENTRY", message: "Dữ liệu đã tồn tại" },
     });
   }
 
   if (err.code === "P2025") {
     return res.status(404).json({
-      error: {
-        code: "NOT_FOUND",
-        message: "Không tìm thấy dữ liệu",
-      },
+      error: { code: "NOT_FOUND", message: "Không tìm thấy dữ liệu" },
     });
   }
 
