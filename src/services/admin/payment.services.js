@@ -1,5 +1,10 @@
 import prisma from "../../config/client.js";
 import { parsePagination } from "../../utils/pagination.js";
+import {
+  NotFoundError,
+  ConflictError,
+  ValidationError,
+} from "../../utils/AppError.js";
 
 const paymentListSelect = {
   id: true,
@@ -46,15 +51,12 @@ export const getPaymentsServices = async ({
           },
         }
       : {}),
-    // FIX #3: thêm mode insensitive để tương thích PostgreSQL
     ...(keyword && {
       OR: [
         { transactionId: { contains: keyword, mode: "insensitive" } },
         { refundId: { contains: keyword, mode: "insensitive" } },
         {
-          order: {
-            receiverPhone: { contains: keyword, mode: "insensitive" },
-          },
+          order: { receiverPhone: { contains: keyword, mode: "insensitive" } },
         },
       ],
     }),
@@ -82,38 +84,32 @@ export const getPaymentByIdServices = async (id) => {
     where: { id: Number(id) },
     select: paymentListSelect,
   });
-  if (!payment) throw new Error("Giao dịch không tồn tại");
+
+  if (!payment) throw new NotFoundError("Giao dịch");
   return payment;
 };
 
-// Xác nhận thanh toán BANKING thủ công
 export const confirmBankingServices = async (id, { transactionId }) => {
   const payment = await prisma.payment.findUnique({
     where: { id: Number(id) },
-    include: {
-      order: { select: { id: true, userId: true } },
-    },
+    include: { order: { select: { id: true, userId: true } } },
   });
 
-  if (!payment) throw new Error("Giao dịch không tồn tại");
+  if (!payment) throw new NotFoundError("Giao dịch");
 
   if (payment.provider !== "BANKING")
-    throw new Error("Chỉ xác nhận được giao dịch BANKING");
+    throw new ValidationError("Chỉ xác nhận được giao dịch BANKING");
 
-  // FIX #2: xử lý đủ các trạng thái không hợp lệ
   if (["SUCCESS", "REFUNDED"].includes(payment.status))
-    throw new Error("Giao dịch đã được xử lý trước đó");
+    throw new ConflictError("Giao dịch đã được xử lý trước đó");
+
   if (payment.status === "FAILED")
-    throw new Error("Giao dịch đã thất bại, không thể xác nhận");
+    throw new ConflictError("Giao dịch đã thất bại, không thể xác nhận");
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.payment.update({
       where: { id: Number(id) },
-      data: {
-        status: "SUCCESS",
-        // FIX #1: bỏ note khỏi refundNote, chỉ lưu transactionId (required)
-        transactionId,
-      },
+      data: { status: "SUCCESS", transactionId },
       select: paymentListSelect,
     });
 
@@ -122,7 +118,6 @@ export const confirmBankingServices = async (id, { transactionId }) => {
       data: { paymentStatus: "SUCCESS" },
     });
 
-    // FIX #5: notification cho user
     await tx.notification.create({
       data: {
         userId: payment.order.userId,
