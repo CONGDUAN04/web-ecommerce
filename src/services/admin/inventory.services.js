@@ -1,5 +1,6 @@
 import prisma from "../../config/client.js";
 import { parsePagination } from "../../utils/pagination.js";
+import { NotFoundError, ValidationError } from "../../utils/AppError.js";
 
 export const getInventoryLogsServices = async ({
   page = 1,
@@ -30,8 +31,8 @@ export const getInventoryLogsServices = async ({
         id: true,
         action: true,
         quantity: true,
-        quantityBefore: true, // ← mới
-        quantityAfter: true, // ← mới
+        quantityBefore: true,
+        quantityAfter: true,
         note: true,
         createdAt: true,
         variant: {
@@ -40,13 +41,7 @@ export const getInventoryLogsServices = async ({
             sku: true,
             color: true,
             quantity: true,
-            product: {
-              select: {
-                id: true,
-                name: true,
-                thumbnail: true,
-              },
-            },
+            product: { select: { id: true, name: true, thumbnail: true } },
           },
         },
       },
@@ -67,8 +62,8 @@ export const getInventoryLogByIdServices = async (id) => {
       id: true,
       action: true,
       quantity: true,
-      quantityBefore: true, // ← mới
-      quantityAfter: true, // ← mới
+      quantityBefore: true,
+      quantityAfter: true,
       note: true,
       createdAt: true,
       variant: {
@@ -77,20 +72,13 @@ export const getInventoryLogByIdServices = async (id) => {
           sku: true,
           color: true,
           quantity: true,
-          product: {
-            select: {
-              id: true,
-              name: true,
-              thumbnail: true,
-            },
-          },
+          product: { select: { id: true, name: true, thumbnail: true } },
         },
       },
     },
   });
 
-  if (!log) throw new Error("Phiếu kho không tồn tại");
-
+  if (!log) throw new NotFoundError("Phiếu kho");
   return log;
 };
 
@@ -110,16 +98,8 @@ export const getInventorySummaryServices = async ({ page = 1, limit = 10 }) => {
         quantity: true,
         sold: true,
         price: true,
-        product: {
-          select: {
-            id: true,
-            name: true,
-            thumbnail: true,
-          },
-        },
-        _count: {
-          select: { inventoryLogs: true },
-        },
+        product: { select: { id: true, name: true, thumbnail: true } },
+        _count: { select: { inventoryLogs: true } },
       },
     }),
     prisma.variant.count({ where: { isActive: true } }),
@@ -141,7 +121,7 @@ export const createInventoryLogServices = async ({
     where: { id: Number(variantId) },
     select: { id: true, quantity: true, sku: true },
   });
-  if (!variant) throw new Error("Variant không tồn tại");
+  if (!variant) throw new NotFoundError("Variant");
 
   const quantityBefore = variant.quantity;
   let quantityAfter;
@@ -152,7 +132,7 @@ export const createInventoryLogServices = async ({
       break;
     case "EXPORT":
       if (quantityBefore < quantity) {
-        throw new Error(
+        throw new ValidationError(
           `Không đủ hàng — tồn kho hiện tại: ${quantityBefore}, cần xuất: ${quantity}`,
         );
       }
@@ -162,7 +142,7 @@ export const createInventoryLogServices = async ({
       quantityAfter = quantity;
       break;
     default:
-      throw new Error("Hành động không hợp lệ");
+      throw new ValidationError("Hành động không hợp lệ");
   }
 
   const [log] = await prisma.$transaction([
@@ -171,16 +151,16 @@ export const createInventoryLogServices = async ({
         variantId: variant.id,
         action,
         quantity,
-        quantityBefore, // ← mới
-        quantityAfter, // ← mới
+        quantityBefore,
+        quantityAfter,
         note: note ?? null,
       },
       select: {
         id: true,
         action: true,
         quantity: true,
-        quantityBefore: true, // ← mới
-        quantityAfter: true, // ← mới
+        quantityBefore: true,
+        quantityAfter: true,
         note: true,
         createdAt: true,
         variant: {
@@ -188,9 +168,7 @@ export const createInventoryLogServices = async ({
             id: true,
             sku: true,
             color: true,
-            product: {
-              select: { id: true, name: true },
-            },
+            product: { select: { id: true, name: true } },
           },
         },
       },
