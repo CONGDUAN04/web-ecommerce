@@ -8,6 +8,12 @@ import {
   validateSession,
   revokeSession,
 } from "../admin/session.js";
+import {
+  NotFoundError,
+  ConflictError,
+  UnauthorizedError,
+  ValidationError,
+} from "../../utils/AppError.js";
 
 export const isEmailExist = async (email) => {
   const count = await prisma.user.count({ where: { username: email } });
@@ -18,12 +24,12 @@ export const registerNewUser = async (data) => {
   const { fullName, username, password } = data;
 
   const existed = await isEmailExist(username);
-  if (existed) throw new Error("Email đã được sử dụng");
+  if (existed) throw new ConflictError("Email đã được sử dụng");
 
   const hashedPassword = await hashPassword(password);
 
   const userRole = await prisma.role.findUnique({ where: { name: "User" } });
-  if (!userRole) throw new Error("Role 'User' không tồn tại trong hệ thống");
+  if (!userRole) throw new NotFoundError("Role 'User'");
 
   return prisma.user.create({
     data: {
@@ -48,18 +54,19 @@ export const handleLogin = async (username, password, meta = {}) => {
     include: { role: true },
   });
 
-  if (!user) throw new Error("Email hoặc mật khẩu không đúng");
+  if (!user) throw new UnauthorizedError("Email hoặc mật khẩu không đúng");
 
   if (user.accountType !== ACCOUNT_TYPE.SYSTEM) {
-    throw new Error(
+    throw new UnauthorizedError(
       `Tài khoản này được liên kết qua ${user.accountType}, vui lòng đăng nhập bằng phương thức đó`,
     );
   }
 
-  if (!user.password) throw new Error("Email hoặc mật khẩu không đúng");
+  if (!user.password)
+    throw new UnauthorizedError("Email hoặc mật khẩu không đúng");
 
   const isMatch = await comparePassword(password, user.password);
-  if (!isMatch) throw new Error("Email hoặc mật khẩu không đúng");
+  if (!isMatch) throw new UnauthorizedError("Email hoặc mật khẩu không đúng");
 
   const payload = {
     id: user.id,
@@ -83,7 +90,7 @@ export const handleLogin = async (username, password, meta = {}) => {
 };
 
 export const handleRefreshToken = async (token) => {
-  if (!token) throw new Error("Không tìm thấy refresh token");
+  if (!token) throw new UnauthorizedError("Không tìm thấy refresh token");
 
   const session = await findSessionByToken(token);
   validateSession(session);

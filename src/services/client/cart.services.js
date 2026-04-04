@@ -1,10 +1,7 @@
 import prisma from "../../config/client.js";
 import { cartItemSelect } from "../../constants/cart.select.js";
 import { formatCart } from "../../utils/cart.js";
-
-// ========================
-// GET CART
-// ========================
+import { NotFoundError, ValidationError } from "../../utils/AppError.js";
 
 export const getCartService = async (userId) => {
   const cart = await prisma.cart.findUnique({
@@ -19,13 +16,8 @@ export const getCartService = async (userId) => {
   });
 
   if (!cart) return { items: [], subtotal: 0, totalItems: 0 };
-
   return formatCart(cart);
 };
-
-// ========================
-// ADD TO CART
-// ========================
 
 export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
   await prisma.$transaction(async (tx) => {
@@ -41,11 +33,15 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
     });
 
     if (!variant || !variant.isActive || !variant.product.isActive) {
-      throw new Error("Sản phẩm không tồn tại hoặc đã ngừng kinh doanh");
+      throw new NotFoundError(
+        "Sản phẩm không tồn tại hoặc đã ngừng kinh doanh",
+      );
     }
 
     if (variant.quantity < quantity) {
-      throw new Error(`Sản phẩm chỉ còn ${variant.quantity} trong kho`);
+      throw new ValidationError(
+        `Sản phẩm chỉ còn ${variant.quantity} trong kho`,
+      );
     }
 
     const cart = await tx.cart.upsert({
@@ -61,7 +57,9 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
     if (existingItem) {
       const newQty = existingItem.quantity + quantity;
       if (newQty > variant.quantity) {
-        throw new Error(`Sản phẩm chỉ còn ${variant.quantity} trong kho`);
+        throw new ValidationError(
+          `Sản phẩm chỉ còn ${variant.quantity} trong kho`,
+        );
       }
       await tx.cartItem.update({
         where: { id: existingItem.id },
@@ -74,13 +72,8 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
     }
   });
 
-  // Gọi NGOÀI transaction sau khi đã commit
   return getCartService(userId);
 };
-
-// ========================
-// UPDATE CART ITEM
-// ========================
 
 export const updateCartItemService = async (userId, itemId, quantity) => {
   await prisma.$transaction(async (tx) => {
@@ -92,10 +85,12 @@ export const updateCartItemService = async (userId, itemId, quantity) => {
       },
     });
 
-    if (!item) throw new Error("Sản phẩm không có trong giỏ hàng");
+    if (!item) throw new NotFoundError("Sản phẩm không có trong giỏ hàng");
 
     if (quantity > item.variant.quantity) {
-      throw new Error(`Sản phẩm chỉ còn ${item.variant.quantity} trong kho`);
+      throw new ValidationError(
+        `Sản phẩm chỉ còn ${item.variant.quantity} trong kho`,
+      );
     }
 
     await tx.cartItem.update({
@@ -104,34 +99,20 @@ export const updateCartItemService = async (userId, itemId, quantity) => {
     });
   });
 
-  // Gọi NGOÀI transaction sau khi đã commit
   return getCartService(userId);
 };
 
-// ========================
-// REMOVE CART ITEM
-// ========================
-
 export const removeCartItemService = async (userId, itemId) => {
   await prisma.cartItem.deleteMany({
-    where: {
-      id: parseInt(itemId),
-      cart: { userId },
-    },
+    where: { id: parseInt(itemId), cart: { userId } },
   });
 
   return getCartService(userId);
 };
 
-// ========================
-// CLEAR CART
-// ========================
-
 export const clearCartService = async (userId) => {
   await prisma.cartItem.deleteMany({
-    where: {
-      cart: { userId },
-    },
+    where: { cart: { userId } },
   });
 
   return { items: [], subtotal: 0, totalItems: 0 };

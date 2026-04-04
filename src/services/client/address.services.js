@@ -1,4 +1,5 @@
 import prisma from "../../config/client.js";
+import { NotFoundError } from "../../utils/AppError.js";
 
 export const getAddressesService = async (userId) => {
   return prisma.address.findMany({
@@ -38,10 +39,8 @@ export const updateAddressService = async (userId, addressId, body) => {
   const existing = await prisma.address.findFirst({
     where: { id: parseInt(addressId), userId },
   });
+  if (!existing) throw new NotFoundError("Địa chỉ");
 
-  if (!existing) throw new Error("Địa chỉ không tồn tại");
-
-  // nếu set default -> bỏ default cũ
   if (body.isDefault === true) {
     await prisma.address.updateMany({
       where: { userId },
@@ -59,8 +58,7 @@ export const deleteAddressService = async (userId, addressId) => {
   const existing = await prisma.address.findFirst({
     where: { id: parseInt(addressId), userId },
   });
-
-  if (!existing) throw new Error("Địa chỉ không tồn tại");
+  if (!existing) throw new NotFoundError("Địa chỉ");
 
   await prisma.address.delete({ where: { id: existing.id } });
 

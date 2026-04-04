@@ -1,12 +1,9 @@
 import prisma from "../../config/client.js";
-import { parsePagination } from "../../utils/pagination.js";
+import { parsePagination, buildPagination } from "../../utils/pagination.js";
 import { orderSelect } from "../../constants/order.select.js";
-import { buildPagination } from "../../utils/pagination.js";
 import { validateVoucher } from "../../utils/voucher.js";
+import { NotFoundError, ValidationError } from "../../utils/AppError.js";
 
-// ========================
-// CREATE ORDER
-// ========================
 export const createOrderService = async (userId, body) => {
   const {
     receiverName,
@@ -20,19 +17,16 @@ export const createOrderService = async (userId, body) => {
 
   let orderItems = [];
 
-  // Mua ngay hoặc từ cart
   if (bodyItems && bodyItems.length > 0) {
     orderItems = bodyItems;
   } else {
     const cart = await prisma.cart.findUnique({
       where: { userId },
-      include: {
-        cartItems: { include: { variant: true } },
-      },
+      include: { cartItems: { include: { variant: true } } },
     });
 
     if (!cart || cart.cartItems.length === 0) {
-      throw new Error("Giỏ hàng trống");
+      throw new ValidationError("Giỏ hàng trống");
     }
 
     orderItems = cart.cartItems.map((item) => ({
@@ -41,7 +35,6 @@ export const createOrderService = async (userId, body) => {
     }));
   }
 
-  // validate variants
   const variantIds = orderItems.map((i) => i.variantId);
   const variants = await prisma.variant.findMany({
     where: { id: { in: variantIds } },
@@ -49,30 +42,30 @@ export const createOrderService = async (userId, body) => {
   });
 
   if (variants.length !== variantIds.length) {
-    throw new Error("Có sản phẩm không tồn tại");
+    throw new NotFoundError("Có sản phẩm không tồn tại");
   }
 
   for (const item of orderItems) {
     const variant = variants.find((v) => v.id === item.variantId);
 
     if (!variant.isActive || !variant.product.isActive) {
-      throw new Error(`Sản phẩm ${variant.product.name} đã ngừng kinh doanh`);
+      throw new ValidationError(
+        `Sản phẩm ${variant.product.name} đã ngừng kinh doanh`,
+      );
     }
 
     if (variant.quantity < item.quantity) {
-      throw new Error(
+      throw new ValidationError(
         `Sản phẩm ${variant.product.name} chỉ còn ${variant.quantity} trong kho`,
       );
     }
   }
 
-  // subtotal
   const subtotal = orderItems.reduce((sum, item) => {
     const variant = variants.find((v) => v.id === item.variantId);
     return sum + variant.price * item.quantity;
   }, 0);
 
-  // voucher
   let voucherId = null;
   let discountAmount = 0;
 
@@ -86,7 +79,6 @@ export const createOrderService = async (userId, body) => {
   const finalPrice = subtotal - discountAmount + shippingFee;
 
   const order = await prisma.$transaction(async (tx) => {
-    // create order
     const newOrder = await tx.order.create({
       data: {
         userId,
@@ -104,7 +96,6 @@ export const createOrderService = async (userId, body) => {
         orderItems: {
           create: orderItems.map((item) => {
             const variant = variants.find((v) => v.id === item.variantId);
-
             return {
               productName: variant.product.name,
               thumbnail: variant.product.thumbnail,
@@ -121,7 +112,6 @@ export const createOrderService = async (userId, body) => {
       select: orderSelect,
     });
 
-    // payment
     await tx.payment.create({
       data: {
         orderId: newOrder.id,
@@ -131,7 +121,6 @@ export const createOrderService = async (userId, body) => {
       },
     });
 
-    // update stock
     for (const item of orderItems) {
       await tx.variant.update({
         where: { id: item.variantId },
@@ -155,7 +144,6 @@ export const createOrderService = async (userId, body) => {
       });
     }
 
-    // voucher usage
     if (voucherId) {
       await tx.voucher.update({
         where: { id: voucherId },
@@ -167,16 +155,13 @@ export const createOrderService = async (userId, body) => {
       });
     }
 
-    // clear cart
     if (!bodyItems || bodyItems.length === 0) {
       const cart = await tx.cart.findUnique({ where: { userId } });
-
       if (cart) {
         await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
       }
     }
 
-    // notification
     await tx.notification.create({
       data: {
         userId,
@@ -196,17 +181,11 @@ export const createOrderService = async (userId, body) => {
   });
 };
 
-// ========================
-// GET ORDERS
-// ========================
 export const getOrdersService = async (userId, query) => {
   const { page, limit, skip } = parsePagination(query);
   const { status } = query;
 
-  const where = {
-    userId,
-    ...(status && { status }),
-  };
+  const where = { userId, ...(status && { status }) };
 
   const [items, total] = await Promise.all([
     prisma.order.findMany({
@@ -222,45 +201,37 @@ export const getOrdersService = async (userId, query) => {
   return { items, pagination: buildPagination(total, page, limit) };
 };
 
-// ========================
-// GET ORDER BY ID
-// ========================
 export const getOrderByIdService = async (userId, orderId) => {
   const order = await prisma.order.findFirst({
     where: { id: parseInt(orderId), userId },
     select: orderSelect,
   });
 
-  if (!order) throw new Error("Đơn hàng không tồn tại");
-
+  if (!order) throw new NotFoundError("Đơn hàng");
   return order;
 };
 
-// ========================
-// CANCEL ORDER
-// ========================
 export const cancelOrderService = async (userId, orderId, cancelReason) => {
   const order = await prisma.order.findFirst({
     where: { id: parseInt(orderId), userId },
     include: { orderItems: true },
   });
 
-  if (!order) throw new Error("Đơn hàng không tồn tại");
+  if (!order) throw new NotFoundError("Đơn hàng");
 
   if (!["PENDING", "CONFIRMED"].includes(order.status)) {
-    throw new Error(
+    throw new ValidationError(
       "Chỉ có thể huỷ đơn hàng ở trạng thái chờ xác nhận hoặc đã xác nhận",
     );
   }
 
-  const updatedOrder = await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     const updated = await tx.order.update({
       where: { id: order.id },
       data: { status: "CANCELLED", cancelReason },
       select: orderSelect,
     });
 
-    // restore stock
     for (const item of order.orderItems) {
       const variant = await tx.variant.findUnique({
         where: { id: item.variantId },
@@ -287,7 +258,6 @@ export const cancelOrderService = async (userId, orderId, cancelReason) => {
       });
     }
 
-    // restore voucher
     if (order.voucherId) {
       await tx.voucher.update({
         where: { id: order.voucherId },
@@ -295,7 +265,6 @@ export const cancelOrderService = async (userId, orderId, cancelReason) => {
       });
     }
 
-    // notification
     await tx.notification.create({
       data: {
         userId,
@@ -308,6 +277,4 @@ export const cancelOrderService = async (userId, orderId, cancelReason) => {
 
     return updated;
   });
-
-  return updatedOrder;
 };
