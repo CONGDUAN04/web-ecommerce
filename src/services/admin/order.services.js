@@ -1,5 +1,10 @@
 import prisma from "../../config/client.js";
 import { parsePagination } from "../../utils/pagination.js";
+import {
+  NotFoundError,
+  ValidationError,
+  ConflictError,
+} from "../../utils/AppError.js";
 
 // ========================
 // STATE MACHINE
@@ -17,7 +22,7 @@ const VALID_TRANSITIONS = {
 
 const validateTransition = (current, next) => {
   if (!VALID_TRANSITIONS[current]?.includes(next)) {
-    throw new Error(
+    throw new ValidationError(
       `Không thể chuyển trạng thái từ "${current}" sang "${next}"`,
     );
   }
@@ -39,15 +44,9 @@ const orderListSelect = {
   paymentStatus: true,
   trackingCode: true,
   createdAt: true,
-  user: {
-    select: { id: true, username: true, fullName: true },
-  },
-  voucher: {
-    select: { id: true, code: true },
-  },
-  _count: {
-    select: { orderItems: true },
-  },
+  user: { select: { id: true, username: true, fullName: true } },
+  voucher: { select: { id: true, code: true } },
+  _count: { select: { orderItems: true } },
 };
 
 const orderDetailSelect = {
@@ -67,9 +66,7 @@ const orderDetailSelect = {
       variantStorage: true,
       variantSku: true,
       thumbnail: true,
-      variant: {
-        select: { id: true, sku: true, color: true },
-      },
+      variant: { select: { id: true, sku: true, color: true } },
     },
   },
   payment: {
@@ -123,7 +120,7 @@ const orderDetailSelect = {
 // ========================
 const findOrderOrThrow = async (id, include = {}) => {
   const order = await prisma.order.findUnique({ where: { id }, ...include });
-  if (!order) throw new Error("Đơn hàng không tồn tại");
+  if (!order) throw new NotFoundError("Đơn hàng");
   return order;
 };
 
@@ -156,7 +153,6 @@ export const getOrdersServices = async ({
           },
         }
       : {}),
-    // FIX #6: thêm mode insensitive để tương thích PostgreSQL sau này
     ...(keyword && {
       OR: [
         { receiverName: { contains: keyword, mode: "insensitive" } },
@@ -188,7 +184,7 @@ export const getOrderByIdServices = async (id) => {
     where: { id: Number(id) },
     select: orderDetailSelect,
   });
-  if (!order) throw new Error("Đơn hàng không tồn tại");
+  if (!order) throw new NotFoundError("Đơn hàng");
   return order;
 };
 
@@ -198,12 +194,7 @@ export const confirmOrderServices = async (id) => {
   validateTransition(order.status, "CONFIRMED");
 
   await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id },
-      data: { status: "CONFIRMED" },
-    });
-
-    // FIX #4: notification
+    await tx.order.update({ where: { id }, data: { status: "CONFIRMED" } });
     await tx.notification.create({
       data: {
         userId: order.userId,
@@ -226,13 +217,8 @@ export const shipOrderServices = async (id, { trackingCode }) => {
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id },
-      data: {
-        status: "SHIPPING",
-        ...(trackingCode && { trackingCode }),
-      },
+      data: { status: "SHIPPING", ...(trackingCode && { trackingCode }) },
     });
-
-    // FIX #4: notification
     await tx.notification.create({
       data: {
         userId: order.userId,
@@ -249,8 +235,6 @@ export const shipOrderServices = async (id, { trackingCode }) => {
 
 export const completeOrderServices = async (id) => {
   id = Number(id);
-
-  // FIX #2: lấy thêm paymentStatus để không override sai
   const order = await findOrderOrThrow(id);
   validateTransition(order.status, "COMPLETED");
 
@@ -259,15 +243,9 @@ export const completeOrderServices = async (id) => {
       where: { id },
       data: {
         status: "COMPLETED",
-        // Chỉ set SUCCESS nếu đang PENDING (COD giao thành công)
-        // Không override nếu đã SUCCESS (online payment) hoặc REFUNDED
-        ...(order.paymentStatus === "PENDING" && {
-          paymentStatus: "SUCCESS",
-        }),
+        ...(order.paymentStatus === "PENDING" && { paymentStatus: "SUCCESS" }),
       },
     });
-
-    // FIX #4: notification
     await tx.notification.create({
       data: {
         userId: order.userId,
@@ -284,22 +262,17 @@ export const completeOrderServices = async (id) => {
 
 export const cancelOrderServices = async (id, { cancelReason }) => {
   id = Number(id);
-
   const order = await findOrderOrThrow(id, {
-    include: {
-      orderItems: { select: { variantId: true, quantity: true } },
-    },
+    include: { orderItems: { select: { variantId: true, quantity: true } } },
   });
   validateTransition(order.status, "CANCELLED");
 
   await prisma.$transaction(async (tx) => {
-    // Hoàn tồn kho
     for (const item of order.orderItems) {
       const variant = await tx.variant.findUnique({
         where: { id: item.variantId },
         select: { quantity: true },
       });
-
       const quantityBefore = variant.quantity;
       const quantityAfter = quantityBefore + item.quantity;
 
@@ -307,7 +280,6 @@ export const cancelOrderServices = async (id, { cancelReason }) => {
         where: { id: item.variantId },
         data: { quantity: quantityAfter },
       });
-
       await tx.inventoryLog.create({
         data: {
           action: "IMPORT",
@@ -325,7 +297,6 @@ export const cancelOrderServices = async (id, { cancelReason }) => {
       data: {
         status: "CANCELLED",
         cancelReason: cancelReason ?? null,
-        // FIX #3: PENDING → FAILED chỉ khi đang PENDING, không đổi nếu đã ở trạng thái khác
         paymentStatus:
           order.paymentStatus === "SUCCESS"
             ? "REFUNDED"
@@ -335,7 +306,6 @@ export const cancelOrderServices = async (id, { cancelReason }) => {
       },
     });
 
-    // FIX #4: notification
     await tx.notification.create({
       data: {
         userId: order.userId,
@@ -353,14 +323,11 @@ export const cancelOrderServices = async (id, { cancelReason }) => {
 // ========================
 // RETURN FLOW
 // ========================
-
-// Admin duyệt yêu cầu hoàn trả
 export const approveReturnServices = async (
   id,
   { refundAmount, adminNote },
 ) => {
   id = Number(id);
-
   const order = await findOrderOrThrow(id, {
     include: {
       returnRequest: {
@@ -381,9 +348,9 @@ export const approveReturnServices = async (
   validateTransition(order.status, "RETURN_APPROVED");
 
   const returnRequest = order.returnRequest;
-  if (!returnRequest) throw new Error("Không tìm thấy yêu cầu hoàn trả");
+  if (!returnRequest) throw new NotFoundError("Yêu cầu hoàn trả");
   if (returnRequest.isApproved !== null)
-    throw new Error("Yêu cầu hoàn trả đã được xử lý trước đó");
+    throw new ConflictError("Yêu cầu hoàn trả đã được xử lý trước đó");
 
   await prisma.$transaction(async (tx) => {
     await tx.returnRequest.update({
@@ -396,7 +363,6 @@ export const approveReturnServices = async (
       },
     });
 
-    // Hoàn tồn kho cho các item restockable
     for (const item of returnRequest.returnItems) {
       if (!item.isRestockable) continue;
 
@@ -404,7 +370,6 @@ export const approveReturnServices = async (
         where: { id: item.orderItem.variantId },
         select: { quantity: true },
       });
-
       const quantityBefore = variant.quantity;
       const quantityAfter = quantityBefore + item.quantity;
 
@@ -412,7 +377,6 @@ export const approveReturnServices = async (
         where: { id: item.orderItem.variantId },
         data: { quantity: quantityAfter },
       });
-
       await tx.inventoryLog.create({
         data: {
           action: "RETURN",
@@ -426,7 +390,6 @@ export const approveReturnServices = async (
       });
     }
 
-    // FIX #1: dùng upsert thay vì update để tránh crash khi chưa có Payment record (đơn COD)
     await tx.payment.upsert({
       where: { orderId: id },
       update: { refundAmount },
@@ -444,7 +407,6 @@ export const approveReturnServices = async (
       data: { status: "RETURN_APPROVED" },
     });
 
-    // FIX #4: notification
     await tx.notification.create({
       data: {
         userId: order.userId,
@@ -459,38 +421,25 @@ export const approveReturnServices = async (
   return getOrderByIdServices(id);
 };
 
-// Admin từ chối yêu cầu hoàn trả → trả về COMPLETED
 export const rejectReturnServices = async (id, { adminNote }) => {
   id = Number(id);
-
-  // FIX #7: include returnItems để consistent, dù reject không cần dùng
   const order = await findOrderOrThrow(id, {
-    include: {
-      returnRequest: {
-        include: { returnItems: true },
-      },
-    },
+    include: { returnRequest: { include: { returnItems: true } } },
   });
 
   validateTransition(order.status, "COMPLETED");
 
   const returnRequest = order.returnRequest;
-  if (!returnRequest) throw new Error("Không tìm thấy yêu cầu hoàn trả");
+  if (!returnRequest) throw new NotFoundError("Yêu cầu hoàn trả");
   if (returnRequest.isApproved !== null)
-    throw new Error("Yêu cầu hoàn trả đã được xử lý trước đó");
+    throw new ConflictError("Yêu cầu hoàn trả đã được xử lý trước đó");
 
   await prisma.$transaction(async (tx) => {
     await tx.returnRequest.update({
       where: { id: returnRequest.id },
       data: { isApproved: false, adminNote, resolvedAt: new Date() },
     });
-
-    await tx.order.update({
-      where: { id },
-      data: { status: "COMPLETED" },
-    });
-
-    // FIX #4: notification
+    await tx.order.update({ where: { id }, data: { status: "COMPLETED" } });
     await tx.notification.create({
       data: {
         userId: order.userId,
@@ -505,7 +454,6 @@ export const rejectReturnServices = async (id, { adminNote }) => {
   return getOrderByIdServices(id);
 };
 
-// Admin xác nhận đã nhận hàng + hoàn tiền xong
 export const completeReturnServices = async (
   id,
   { refundId, refundNote } = {},
@@ -515,7 +463,6 @@ export const completeReturnServices = async (
   validateTransition(order.status, "RETURNED");
 
   await prisma.$transaction(async (tx) => {
-    // FIX #1: dùng upsert để tránh crash nếu chưa có Payment record
     await tx.payment.upsert({
       where: { orderId: id },
       update: {
@@ -538,7 +485,6 @@ export const completeReturnServices = async (
       data: { status: "RETURNED", paymentStatus: "REFUNDED" },
     });
 
-    // FIX #4: notification
     await tx.notification.create({
       data: {
         userId: order.userId,
