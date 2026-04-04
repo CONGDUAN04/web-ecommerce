@@ -1,5 +1,10 @@
 import prisma from "../../config/client.js";
 import { parsePagination } from "../../utils/pagination.js";
+import {
+  NotFoundError,
+  ConflictError,
+  ValidationError,
+} from "../../utils/AppError.js";
 
 const variantInclude = {
   product: {
@@ -16,10 +21,6 @@ const variantInclude = {
     },
   },
 };
-
-// ========================
-// GET LIST
-// ========================
 
 export const getVariantsServices = async ({
   page = 1,
@@ -50,29 +51,21 @@ export const getVariantsServices = async ({
   };
 };
 
-// ========================
-// GET BY ID
-// ========================
-
 export const getVariantByIdServices = async (id) => {
   const variant = await prisma.variant.findUnique({
     where: { id: Number(id) },
     include: variantInclude,
   });
 
-  if (!variant) throw new Error("Variant không tồn tại");
+  if (!variant) throw new NotFoundError("Variant");
   return variant;
 };
-
-// ========================
-// GET BY PRODUCT ID
-// ========================
 
 export const getVariantsByProductIdServices = async (productId) => {
   const product = await prisma.product.findUnique({
     where: { id: Number(productId) },
   });
-  if (!product) throw new Error("Sản phẩm không tồn tại");
+  if (!product) throw new NotFoundError("Sản phẩm");
 
   const variants = await prisma.variant.findMany({
     where: { productId: Number(productId), isActive: true },
@@ -84,34 +77,29 @@ export const getVariantsByProductIdServices = async (productId) => {
   return { variants, colors };
 };
 
-// ========================
-// CREATE
-// ========================
-
 export const createVariantServices = async (data) => {
   const product = await prisma.product.findUnique({
     where: { id: Number(data.productId) },
   });
-  if (!product) throw new Error("Sản phẩm không tồn tại");
-  if (!product.isActive) throw new Error("Sản phẩm đã bị ẩn");
+  if (!product) throw new NotFoundError("Sản phẩm");
+  if (!product.isActive) throw new ConflictError("Sản phẩm đã bị ẩn");
 
   const skuExist = await prisma.variant.findUnique({
     where: { sku: data.sku },
   });
-  if (skuExist) throw new Error("SKU đã tồn tại");
+  if (skuExist) throw new ConflictError("SKU đã tồn tại");
 
   const duplicate = await prisma.variant.findFirst({
-    where: {
-      productId: Number(data.productId),
-      color: data.color,
-    },
+    where: { productId: Number(data.productId), color: data.color },
   });
   if (duplicate) {
-    throw new Error(`Variant màu ${data.color} đã tồn tại trong sản phẩm này`);
+    throw new ConflictError(
+      `Variant màu ${data.color} đã tồn tại trong sản phẩm này`,
+    );
   }
 
   if (data.comparePrice && data.comparePrice < data.price) {
-    throw new Error("Giá gốc phải lớn hơn hoặc bằng giá bán");
+    throw new ValidationError("Giá gốc phải lớn hơn hoặc bằng giá bán");
   }
 
   return prisma.variant.create({
@@ -126,15 +114,11 @@ export const createVariantServices = async (data) => {
   });
 };
 
-// ========================
-// UPDATE
-// ========================
-
 export const updateVariantServices = async (id, data) => {
   id = Number(id);
 
   const exist = await prisma.variant.findUnique({ where: { id } });
-  if (!exist) throw new Error("Variant không tồn tại");
+  if (!exist) throw new NotFoundError("Variant");
 
   const updateData = {};
 
@@ -142,20 +126,16 @@ export const updateVariantServices = async (id, data) => {
     const skuExist = await prisma.variant.findFirst({
       where: { sku: data.sku, NOT: { id } },
     });
-    if (skuExist) throw new Error("SKU đã tồn tại");
+    if (skuExist) throw new ConflictError("SKU đã tồn tại");
     updateData.sku = data.sku;
   }
 
   if (data.color !== undefined) {
     const duplicate = await prisma.variant.findFirst({
-      where: {
-        productId: exist.productId,
-        color: data.color,
-        NOT: { id },
-      },
+      where: { productId: exist.productId, color: data.color, NOT: { id } },
     });
     if (duplicate) {
-      throw new Error(
+      throw new ConflictError(
         `Variant màu ${data.color} đã tồn tại trong sản phẩm này`,
       );
     }
@@ -165,7 +145,7 @@ export const updateVariantServices = async (id, data) => {
   const newPrice = data.price ?? exist.price;
   const newComparePrice = data.comparePrice ?? exist.comparePrice;
   if (newComparePrice && newComparePrice < newPrice) {
-    throw new Error("Giá gốc phải lớn hơn hoặc bằng giá bán");
+    throw new ValidationError("Giá gốc phải lớn hơn hoặc bằng giá bán");
   }
 
   if (data.price !== undefined) updateData.price = data.price;
@@ -175,7 +155,7 @@ export const updateVariantServices = async (id, data) => {
   if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
 
   if (Object.keys(updateData).length === 0) {
-    throw new Error("Cần ít nhất một trường để cập nhật");
+    throw new ValidationError("Cần ít nhất một trường để cập nhật");
   }
 
   return prisma.variant.update({
@@ -185,15 +165,11 @@ export const updateVariantServices = async (id, data) => {
   });
 };
 
-// ========================
-// DELETE (soft delete)
-// ========================
-
 export const deleteVariantServices = async (id) => {
   id = Number(id);
 
   const exist = await prisma.variant.findUnique({ where: { id } });
-  if (!exist) throw new Error("Variant không tồn tại");
+  if (!exist) throw new NotFoundError("Variant");
 
   await prisma.variant.update({
     where: { id },

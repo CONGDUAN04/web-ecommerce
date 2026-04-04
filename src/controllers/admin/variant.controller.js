@@ -1,114 +1,43 @@
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import { ApiResponse } from "../../utils/response.js";
 import {
-    getVariantsServices,
-    getVariantByIdServices,
-    getVariantsByProductIdServices,
-    createVariantServices,
-    updateVariantServices,
-    deleteVariantServices
+  getVariantsServices,
+  getVariantByIdServices,
+  getVariantsByProductIdServices,
+  createVariantServices,
+  updateVariantServices,
+  deleteVariantServices,
 } from "../../services/admin/variant.services.js";
 
-// ========================
-// GET LIST
-// ========================
+export const getVariants = asyncHandler(async (req, res) => {
+  const result = await getVariantsServices(req.validated.query);
+  return ApiResponse.success(res, result.items, { meta: result.pagination });
+});
 
-export const getVariants = async (req, res) => {
-    try {
-        const result = await getVariantsServices(req.validated.query);
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Lấy danh sách variant thành công",
-            data: result.items,
-            pagination: result.pagination
-        });
-    } catch (error) {
-        return res.status(500).json({ ErrorCode: 1, message: error.message });
-    }
-};
+export const getVariantById = asyncHandler(async (req, res) => {
+  const variant = await getVariantByIdServices(req.validated.params.id);
+  return ApiResponse.success(res, variant);
+});
 
-// ========================
-// GET BY ID
-// ========================
+export const getVariantsByProductId = asyncHandler(async (req, res) => {
+  const data = await getVariantsByProductIdServices(req.params.productId);
+  return ApiResponse.success(res, data);
+});
 
-export const getVariantById = async (req, res) => {
-    try {
-        const data = await getVariantByIdServices(req.validated.params.id);
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Lấy variant thành công",
-            data
-        });
-    } catch (error) {
-        return res.status(404).json({ ErrorCode: 1, message: error.message });
-    }
-};
+export const createVariant = asyncHandler(async (req, res) => {
+  const variant = await createVariantServices(req.validated.body);
+  return ApiResponse.created(res, variant);
+});
 
-// ========================
-// GET BY PRODUCT ID
-// Trả về variants + storages[] + colors[]
-// ========================
+export const updateVariant = asyncHandler(async (req, res) => {
+  const variant = await updateVariantServices(
+    req.validated.params.id,
+    req.validated.body,
+  );
+  return ApiResponse.updated(res, variant);
+});
 
-export const getVariantsByProductId = async (req, res) => {
-    try {
-        const data = await getVariantsByProductIdServices(req.params.productId);
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Lấy variant theo sản phẩm thành công",
-            data
-        });
-    } catch (error) {
-        return res.status(404).json({ ErrorCode: 1, message: error.message });
-    }
-};
-
-// ========================
-// CREATE
-// ========================
-
-export const createVariant = async (req, res) => {
-    try {
-        const data = await createVariantServices(req.validated.body);
-        return res.status(201).json({
-            ErrorCode: 0,
-            message: "Tạo variant thành công",
-            data
-        });
-    } catch (error) {
-        return res.status(400).json({ ErrorCode: 1, message: error.message });
-    }
-};
-
-// ========================
-// UPDATE
-// ========================
-
-export const updateVariant = async (req, res) => {
-    try {
-        const data = await updateVariantServices(
-            req.validated.params.id,
-            req.validated.body
-        );
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Cập nhật variant thành công",
-            data
-        });
-    } catch (error) {
-        return res.status(400).json({ ErrorCode: 1, message: error.message });
-    }
-};
-
-// ========================
-// DELETE
-// ========================
-
-export const deleteVariant = async (req, res) => {
-    try {
-        await deleteVariantServices(req.validated.params.id);
-        return res.status(200).json({
-            ErrorCode: 0,
-            message: "Xóa variant thành công"
-        });
-    } catch (error) {
-        return res.status(400).json({ ErrorCode: 1, message: error.message });
-    }
-};
+export const deleteVariant = asyncHandler(async (req, res) => {
+  await deleteVariantServices(req.validated.params.id);
+  return ApiResponse.deleted(res);
+});
