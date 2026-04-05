@@ -15,25 +15,26 @@ import {
   getProductGroupsSchema,
   getProductGroupBySlugSchema,
 } from "../../validations/client/product.validation.js";
+import reviewRoutes from "./api.review.js";
 
 const router = Router();
+router.use("/:productId/reviews", reviewRoutes);
 
 // Products
 router.get("/", validate(getProductsSchema), getProducts);
 router.get("/search", validate(searchProductsSchema), searchProducts);
-router.get("/:slug", validate(getProductBySlugSchema), getProductBySlug);
-router.get(
-  "/:slug/related",
-  validate(getProductBySlugSchema),
-  getRelatedProducts,
-);
-
-// Product Groups
 router.get("/groups", validate(getProductGroupsSchema), getProductGroups);
 router.get(
   "/groups/:slug",
   validate(getProductGroupBySlugSchema),
   getProductGroupBySlug,
+);
+
+router.get("/:slug", validate(getProductBySlugSchema), getProductBySlug);
+router.get(
+  "/:slug/related",
+  validate(getProductBySlugSchema),
+  getRelatedProducts,
 );
 
 export default router;

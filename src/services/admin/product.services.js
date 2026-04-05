@@ -67,7 +67,7 @@ export const getProductByIdServices = async (id) => {
       ...productInclude,
       variants: {
         where: { isActive: true },
-        orderBy: [{ storage: "asc" }, { color: "asc" }],
+        orderBy: [{ price: "asc" }, { color: "asc" }],
       },
       images: { orderBy: { sortOrder: "asc" } },
       specifications: true,
