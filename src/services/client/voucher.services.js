@@ -1,4 +1,4 @@
-import prisma from "../config/client.js";
+import prisma from "../../config/client.js";
 
 export const validateVoucher = async (code, userId, subtotal) => {
   const voucher = await prisma.voucher.findUnique({

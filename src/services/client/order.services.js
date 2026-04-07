@@ -1,7 +1,7 @@
 import prisma from "../../config/client.js";
 import { parsePagination, buildPagination } from "../../utils/pagination.js";
 import { orderSelect } from "../../constants/order.select.js";
-import { validateVoucher } from "../../utils/voucher.js";
+import { validateVoucher } from "./voucher.services.js";
 import { NotFoundError, ValidationError } from "../../utils/AppError.js";
 import { getFlashSalePrice } from "../../utils/flashSale.js";
 

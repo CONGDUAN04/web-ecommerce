@@ -6,14 +6,16 @@ import { productSelect } from "../../constants/product.select.js";
 import { NotFoundError } from "../../utils/AppError.js";
 import { getFlashSalePrice } from "../../utils/flashSale.js";
 
-/* ──────────────────────────────────────────────────────────
-   APPLY FLASH SALE
-────────────────────────────────────────────────────────── */
-const applyFlashSale = (products) => {
-  return products.map((p) => ({
+/* ─────────────────────────────────────────────
+   TRANSFORM PRODUCTS (🔥 CORE PIPELINE)
+───────────────────────────────────────────── */
+const transformProducts = (products, sort) => {
+  const now = new Date();
+
+  const withFlash = products.map((p) => ({
     ...p,
     variants: p.variants?.map((v) => {
-      const { price, originalPrice, isFlashSale } = getFlashSalePrice(v);
+      const { price, originalPrice, isFlashSale } = getFlashSalePrice(v, now);
 
       return {
         ...v,
@@ -23,21 +25,23 @@ const applyFlashSale = (products) => {
       };
     }),
   }));
+
+  return applySortInMemory(attachReviewStats(withFlash), sort);
 };
 
-/* ──────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
    GET PRODUCTS
-────────────────────────────────────────────────────────── */
+───────────────────────────────────────────── */
 export const getProductsService = async (query) => {
   const { page, limit, skip } = parsePagination(query);
   const { categoryId, brandId, groupId, storage, sort = "newest" } = query;
 
   const where = {
     isActive: true,
-    ...(categoryId && { categoryId: parseInt(categoryId) }),
-    ...(brandId && { brandId: parseInt(brandId) }),
-    ...(groupId && { groupId: parseInt(groupId) }),
-    ...(storage && { storage: parseInt(storage) }),
+    ...(categoryId && { categoryId: Number(categoryId) }),
+    ...(brandId && { brandId: Number(brandId) }),
+    ...(groupId && { groupId: Number(groupId) }),
+    ...(storage && { storage: Number(storage) }),
   };
 
   const dbOrderBy = {
@@ -57,17 +61,15 @@ export const getProductsService = async (query) => {
     prisma.product.count({ where }),
   ]);
 
-  const withFlash = applyFlashSale(items);
-
   return {
-    items: applySortInMemory(attachReviewStats(withFlash), sort),
+    items: transformProducts(items, sort),
     pagination: buildPagination(total, page, limit),
   };
 };
 
-/* ──────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
    GET PRODUCT BY SLUG
-────────────────────────────────────────────────────────── */
+───────────────────────────────────────────── */
 export const getProductBySlugService = async (slug) => {
   const product = await prisma.product.findUnique({
     where: { slug },
@@ -86,6 +88,7 @@ export const getProductBySlugService = async (slug) => {
 
   if (!product) throw new NotFoundError("Sản phẩm");
 
+  // update view không block
   prisma.product
     .update({
       where: { slug },
@@ -93,13 +96,13 @@ export const getProductBySlugService = async (slug) => {
     })
     .catch(() => {});
 
-  const [result] = attachReviewStats(applyFlashSale([product]));
+  const [result] = transformProducts([product], "newest");
   return result;
 };
 
-/* ──────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
    SEARCH PRODUCTS
-────────────────────────────────────────────────────────── */
+───────────────────────────────────────────── */
 export const searchProductsService = async (query) => {
   const { page, limit, skip } = parsePagination(query);
   const { q = "" } = query;
@@ -130,18 +133,18 @@ export const searchProductsService = async (query) => {
   ]);
 
   return {
-    items: attachReviewStats(applyFlashSale(items)),
+    items: transformProducts(items, "popular"),
     pagination: buildPagination(total, page, limit),
   };
 };
 
-/* ──────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
    RELATED PRODUCTS
-────────────────────────────────────────────────────────── */
+───────────────────────────────────────────── */
 export const getRelatedProductsService = async (slug) => {
   const product = await prisma.product.findUnique({
     where: { slug },
-    select: { id: true, groupId: true, categoryId: true, brandId: true },
+    select: { id: true, groupId: true },
   });
 
   if (!product) throw new NotFoundError("Sản phẩm");
@@ -157,12 +160,12 @@ export const getRelatedProductsService = async (slug) => {
     take: 8,
   });
 
-  return attachReviewStats(applyFlashSale(related));
+  return transformProducts(related, "popular");
 };
 
-/* ──────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
    GET PRODUCT GROUPS
-────────────────────────────────────────────────────────── */
+───────────────────────────────────────────── */
 export const getProductGroupsService = async () => {
   return prisma.productGroup.findMany({
     orderBy: { name: "asc" },
@@ -175,13 +178,12 @@ export const getProductGroupsService = async () => {
   });
 };
 
-/* ──────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
    GET PRODUCT GROUP BY SLUG
-────────────────────────────────────────────────────────── */
+───────────────────────────────────────────── */
 export const getProductGroupBySlugService = async (slug) => {
   const group = await prisma.productGroup.findUnique({
     where: { slug },
-    select: { id: true, name: true, slug: true, series: true },
   });
 
   if (!group) throw new NotFoundError("Nhóm sản phẩm");
@@ -197,6 +199,6 @@ export const getProductGroupBySlugService = async (slug) => {
 
   return {
     group,
-    items: attachReviewStats(applyFlashSale(products)),
+    items: transformProducts(products, "popular"),
   };
 };
