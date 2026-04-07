@@ -42,8 +42,4 @@ export const productSelect = {
       },
     },
   },
-
-  reviews: {
-    select: { rating: true },
-  },
 };

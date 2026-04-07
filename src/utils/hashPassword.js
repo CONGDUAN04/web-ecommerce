@@ -1,12 +1,16 @@
 import bcrypt from "bcrypt";
-const saltRounds = 10;
+import dotenv from "dotenv";
+dotenv.config();
+const saltRounds = Number(process.env.BCRYPT_ROUNDS) || 10;
+
 const hashPassword = async (plainText) => {
-    return await bcrypt.hash(plainText, saltRounds)
-}
-const comparePassword = async (plainText, hashPassword) => {
-    return await bcrypt.compare(plainText, hashPassword);
-}
-export {
-    hashPassword,
-    comparePassword
-}
+  if (!plainText) throw new Error("Password is required");
+  return bcrypt.hash(plainText, saltRounds);
+};
+
+const comparePassword = async (plainText, hashedPassword) => {
+  if (!plainText || !hashedPassword) return false;
+  return bcrypt.compare(plainText, hashedPassword);
+};
+
+export { hashPassword, comparePassword };

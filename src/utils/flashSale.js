@@ -1,13 +1,17 @@
-export const getFlashSalePrice = (variant) => {
-  const now = new Date();
+export const getFlashSalePrice = (variant, now) => {
+  const currentTime = now ?? new Date();
 
-  const flash = variant.flashSaleItems?.find(
-    (f) =>
+  const flash = variant.flashSaleItems?.find((f) => {
+    const start = new Date(f.flashSale.startTime);
+    const end = new Date(f.flashSale.endTime);
+
+    return (
       f.flashSale.isActive &&
-      new Date(f.flashSale.startTime) <= now &&
-      new Date(f.flashSale.endTime) >= now &&
-      f.quantity > f.sold,
-  );
+      start <= currentTime &&
+      end >= currentTime &&
+      f.quantity > f.sold
+    );
+  });
 
   if (!flash) {
     return {
