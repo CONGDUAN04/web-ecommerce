@@ -1,4 +1,4 @@
-import { asyncHandler } from "../../utils/asyncHandler.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { ApiResponse } from "../../utils/response.js";
 import {
   getCategoriesServices,

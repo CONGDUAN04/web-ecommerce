@@ -1,6 +1,6 @@
 import prisma from "../../config/client.js";
 import { comparePassword, hashPassword } from "../../utils/hashPassword.js";
-import { ACCOUNT_TYPE } from "../../config/constant.js";
+import { ACCOUNT_TYPE } from "../../constants/index.js";
 import {
   NotFoundError,
   ConflictError,

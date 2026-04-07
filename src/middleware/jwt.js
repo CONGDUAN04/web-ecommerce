@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
-import { ROLE } from "../config/constant.js";
-
+import { ROLE } from "../constants/index.js";
 const checkValidJWT = (req, res, next) => {
   const path = req.originalUrl.replace(/^\/api/, "");
 

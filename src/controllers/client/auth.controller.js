@@ -1,4 +1,4 @@
-import { asyncHandler } from "../../utils/asyncHandler.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { ApiResponse } from "../../utils/response.js";
 import {
   registerNewUser,
@@ -10,7 +10,7 @@ import {
   getActiveSessions,
   revokeAllUserSessions,
 } from "../../services/admin/session.js";
-import { COOKIE_OPTIONS } from "../../config/constant.js";
+import { COOKIE_OPTIONS } from "../../constants/index.js";
 
 export const register = asyncHandler(async (req, res) => {
   const user = await registerNewUser(req.body);

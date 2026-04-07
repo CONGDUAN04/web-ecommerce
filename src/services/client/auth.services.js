@@ -1,6 +1,6 @@
 import { comparePassword, hashPassword } from "../../utils/hashPassword.js";
 import prisma from "../../config/client.js";
-import { ACCOUNT_TYPE } from "../../config/constant.js";
+import { ACCOUNT_TYPE } from "../../constants/index.js";
 import jwt from "jsonwebtoken";
 import {
   createSession,

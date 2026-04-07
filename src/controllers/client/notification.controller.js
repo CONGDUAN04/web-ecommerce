@@ -1,5 +1,5 @@
 // notification.controller.js
-import { asyncHandler } from "../../utils/asyncHandler.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { ApiResponse } from "../../utils/response.js";
 import { NotFoundError } from "../../utils/AppError.js"; // ← thêm import này
 import {

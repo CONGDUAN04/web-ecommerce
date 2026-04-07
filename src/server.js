@@ -5,7 +5,7 @@ import adminRoutes from "./routes/admin/index.js";
 import authRouter from "./routes/client/api.auth.js";
 import clientRoutes from "./routes/client/index.js";
 import { checkValidJWT, isAdmin } from "./middleware/jwt.js";
-import { errorHandler } from "./utils/errorHandler.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 import dotenv from "dotenv";
 
 dotenv.config();
