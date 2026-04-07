@@ -4,18 +4,33 @@ import { attachReviewStats } from "../../utils/review.js";
 import { applySortInMemory } from "../../utils/sort.js";
 import { productSelect } from "../../constants/product.select.js";
 import { NotFoundError } from "../../utils/AppError.js";
+import { getFlashSalePrice } from "../../utils/flashSale.js";
 
+/* ──────────────────────────────────────────────────────────
+   APPLY FLASH SALE
+────────────────────────────────────────────────────────── */
+const applyFlashSale = (products) => {
+  return products.map((p) => ({
+    ...p,
+    variants: p.variants?.map((v) => {
+      const { price, originalPrice, isFlashSale } = getFlashSalePrice(v);
+
+      return {
+        ...v,
+        price,
+        originalPrice,
+        isFlashSale,
+      };
+    }),
+  }));
+};
+
+/* ──────────────────────────────────────────────────────────
+   GET PRODUCTS
+────────────────────────────────────────────────────────── */
 export const getProductsService = async (query) => {
   const { page, limit, skip } = parsePagination(query);
-  const {
-    categoryId,
-    brandId,
-    groupId,
-    minPrice,
-    maxPrice,
-    storage,
-    sort = "newest",
-  } = query;
+  const { categoryId, brandId, groupId, storage, sort = "newest" } = query;
 
   const where = {
     isActive: true,
@@ -23,17 +38,6 @@ export const getProductsService = async (query) => {
     ...(brandId && { brandId: parseInt(brandId) }),
     ...(groupId && { groupId: parseInt(groupId) }),
     ...(storage && { storage: parseInt(storage) }),
-    ...(minPrice || maxPrice
-      ? {
-          variants: {
-            some: {
-              isActive: true,
-              ...(minPrice && { price: { gte: parseInt(minPrice) } }),
-              ...(maxPrice && { price: { lte: parseInt(maxPrice) } }),
-            },
-          },
-        }
-      : {}),
   };
 
   const dbOrderBy = {
@@ -53,18 +57,22 @@ export const getProductsService = async (query) => {
     prisma.product.count({ where }),
   ]);
 
+  const withFlash = applyFlashSale(items);
+
   return {
-    items: applySortInMemory(attachReviewStats(items), sort),
+    items: applySortInMemory(attachReviewStats(withFlash), sort),
     pagination: buildPagination(total, page, limit),
   };
 };
 
+/* ──────────────────────────────────────────────────────────
+   GET PRODUCT BY SLUG
+────────────────────────────────────────────────────────── */
 export const getProductBySlugService = async (slug) => {
   const product = await prisma.product.findUnique({
     where: { slug },
     select: {
       ...productSelect,
-      isActive: true,
       description: true,
       images: {
         select: { id: true, imageUrl: true, sortOrder: true },
@@ -76,16 +84,22 @@ export const getProductBySlugService = async (slug) => {
     },
   });
 
-  if (!product || !product.isActive) throw new NotFoundError("Sản phẩm");
+  if (!product) throw new NotFoundError("Sản phẩm");
 
   prisma.product
-    .update({ where: { slug }, data: { viewCount: { increment: 1 } } })
+    .update({
+      where: { slug },
+      data: { viewCount: { increment: 1 } },
+    })
     .catch(() => {});
 
-  const [result] = attachReviewStats([product]);
+  const [result] = attachReviewStats(applyFlashSale([product]));
   return result;
 };
 
+/* ──────────────────────────────────────────────────────────
+   SEARCH PRODUCTS
+────────────────────────────────────────────────────────── */
 export const searchProductsService = async (query) => {
   const { page, limit, skip } = parsePagination(query);
   const { q = "" } = query;
@@ -98,7 +112,6 @@ export const searchProductsService = async (query) => {
     isActive: true,
     OR: [
       { name: { contains: q } },
-      { description: { contains: q } },
       { brand: { name: { contains: q } } },
       { group: { name: { contains: q } } },
       { group: { series: { contains: q } } },
@@ -117,11 +130,14 @@ export const searchProductsService = async (query) => {
   ]);
 
   return {
-    items: attachReviewStats(items),
+    items: attachReviewStats(applyFlashSale(items)),
     pagination: buildPagination(total, page, limit),
   };
 };
 
+/* ──────────────────────────────────────────────────────────
+   RELATED PRODUCTS
+────────────────────────────────────────────────────────── */
 export const getRelatedProductsService = async (slug) => {
   const product = await prisma.product.findUnique({
     where: { slug },
@@ -130,7 +146,7 @@ export const getRelatedProductsService = async (slug) => {
 
   if (!product) throw new NotFoundError("Sản phẩm");
 
-  let related = await prisma.product.findMany({
+  const related = await prisma.product.findMany({
     where: {
       isActive: true,
       id: { not: product.id },
@@ -141,155 +157,46 @@ export const getRelatedProductsService = async (slug) => {
     take: 8,
   });
 
-  if (related.length < 8) {
-    const exclude = [product.id, ...related.map((p) => p.id)];
-    const more = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        id: { notIn: exclude },
-        brandId: product.brandId,
-        categoryId: product.categoryId,
-      },
-      select: productSelect,
-      orderBy: { viewCount: "desc" },
-      take: 8 - related.length,
-    });
-    related = [...related, ...more];
-  }
-
-  if (related.length < 8) {
-    const exclude = [product.id, ...related.map((p) => p.id)];
-    const more = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        id: { notIn: exclude },
-        categoryId: product.categoryId,
-      },
-      select: productSelect,
-      orderBy: { viewCount: "desc" },
-      take: 8 - related.length,
-    });
-    related = [...related, ...more];
-  }
-
-  return attachReviewStats(related);
+  return attachReviewStats(applyFlashSale(related));
 };
 
-export const getProductGroupsService = async (query) => {
-  const { page, limit, skip } = parsePagination(query);
-  const { categoryId, brandId } = query;
-
-  const where = {
-    isActive: true,
-    ...(categoryId && { categoryId: parseInt(categoryId) }),
-    ...(brandId && { brandId: parseInt(brandId) }),
-  };
-
-  const [items, total] = await Promise.all([
-    prisma.productGroup.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        series: true,
-        thumbnail: true,
-        brand: { select: { id: true, name: true, slug: true, logo: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        products: {
-          where: { isActive: true },
-          select: {
-            variants: {
-              where: { isActive: true },
-              select: { price: true, comparePrice: true },
-              orderBy: { price: "asc" },
-              take: 1,
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: limit,
-    }),
-    prisma.productGroup.count({ where }),
-  ]);
-
-  const formatted = items.map((g) => {
-    const allPrices = g.products.flatMap((p) => p.variants).map((v) => v.price);
-    const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : null;
-    const { products, ...rest } = g;
-    return { ...rest, minPrice };
-  });
-
-  return { items: formatted, pagination: buildPagination(total, page, limit) };
-};
-
-export const getProductGroupBySlugService = async (slug, query = {}) => {
-  const { storage, color, minPrice, maxPrice } = query;
-
-  const group = await prisma.productGroup.findUnique({
-    where: { slug },
+/* ──────────────────────────────────────────────────────────
+   GET PRODUCT GROUPS
+────────────────────────────────────────────────────────── */
+export const getProductGroupsService = async () => {
+  return prisma.productGroup.findMany({
+    orderBy: { name: "asc" },
     select: {
       id: true,
       name: true,
       slug: true,
       series: true,
-      description: true,
-      thumbnail: true,
-      isActive: true,
-      brand: { select: { id: true, name: true, slug: true, logo: true } },
-      category: { select: { id: true, name: true, slug: true } },
-      products: {
-        where: { isActive: true },
-        select: {
-          ...productSelect,
-          description: true,
-          images: {
-            select: { id: true, imageUrl: true, sortOrder: true },
-            orderBy: { sortOrder: "asc" },
-          },
-          specifications: { select: { id: true, name: true, value: true } },
-        },
-        orderBy: { storage: "asc" },
-      },
     },
   });
+};
 
-  if (!group || !group.isActive) throw new NotFoundError("Dòng sản phẩm");
-
-  const storageOptions = [
-    ...new Set(group.products.map((p) => p.storage).filter(Boolean)),
-  ].sort((a, b) => a - b);
-
-  const colorOptions = [
-    ...new Set(group.products.flatMap((p) => p.variants.map((v) => v.color))),
-  ];
-
-  let products = group.products;
-
-  if (storage) {
-    products = products.filter((p) => p.storage === parseInt(storage));
-  }
-
-  products = products.map((p) => {
-    let variants = p.variants;
-    if (color)
-      variants = variants.filter((v) =>
-        v.color.toLowerCase().includes(color.toLowerCase()),
-      );
-    if (minPrice)
-      variants = variants.filter((v) => v.price >= parseInt(minPrice));
-    if (maxPrice)
-      variants = variants.filter((v) => v.price <= parseInt(maxPrice));
-    return { ...p, variants };
+/* ──────────────────────────────────────────────────────────
+   GET PRODUCT GROUP BY SLUG
+────────────────────────────────────────────────────────── */
+export const getProductGroupBySlugService = async (slug) => {
+  const group = await prisma.productGroup.findUnique({
+    where: { slug },
+    select: { id: true, name: true, slug: true, series: true },
   });
 
-  const { isActive, ...rest } = group;
+  if (!group) throw new NotFoundError("Nhóm sản phẩm");
+
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      groupId: group.id,
+    },
+    select: productSelect,
+    orderBy: { viewCount: "desc" },
+  });
 
   return {
-    ...rest,
-    products: attachReviewStats(products),
-    filterOptions: { storageOptions, colorOptions },
+    group,
+    items: attachReviewStats(applyFlashSale(products)),
   };
 };

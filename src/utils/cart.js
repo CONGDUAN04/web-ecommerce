@@ -6,7 +6,7 @@ export const formatCart = (cart) => {
   }));
 
   const subtotal = items.reduce(
-    (sum, item) => sum + item.variant.price * item.quantity,
+    (sum, item) => sum + item.price * item.quantity,
     0,
   );
 

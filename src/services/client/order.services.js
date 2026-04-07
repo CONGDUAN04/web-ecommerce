@@ -3,7 +3,11 @@ import { parsePagination, buildPagination } from "../../utils/pagination.js";
 import { orderSelect } from "../../constants/order.select.js";
 import { validateVoucher } from "../../utils/voucher.js";
 import { NotFoundError, ValidationError } from "../../utils/AppError.js";
+import { getFlashSalePrice } from "../../utils/flashSale.js";
 
+/* ─────────────────────────────────────────────
+   CREATE ORDER
+───────────────────────────────────────────── */
 export const createOrderService = async (userId, body) => {
   const {
     receiverName,
@@ -17,6 +21,7 @@ export const createOrderService = async (userId, body) => {
 
   let orderItems = [];
 
+  /* ───── lấy từ cart nếu không có items ───── */
   if (bodyItems && bodyItems.length > 0) {
     orderItems = bodyItems;
   } else {
@@ -36,15 +41,20 @@ export const createOrderService = async (userId, body) => {
   }
 
   const variantIds = orderItems.map((i) => i.variantId);
+
   const variants = await prisma.variant.findMany({
     where: { id: { in: variantIds } },
-    include: { product: true },
+    include: {
+      product: true,
+      flashSaleItems: { include: { flashSale: true } },
+    },
   });
 
   if (variants.length !== variantIds.length) {
     throw new NotFoundError("Có sản phẩm không tồn tại");
   }
 
+  /* ───── validate stock ───── */
   for (const item of orderItems) {
     const variant = variants.find((v) => v.id === item.variantId);
 
@@ -56,14 +66,17 @@ export const createOrderService = async (userId, body) => {
 
     if (variant.quantity < item.quantity) {
       throw new ValidationError(
-        `Sản phẩm ${variant.product.name} chỉ còn ${variant.quantity} trong kho`,
+        `Sản phẩm ${variant.product.name} chỉ còn ${variant.quantity}`,
       );
     }
   }
 
+  /* ───── subtotal (flash sale) ───── */
   const subtotal = orderItems.reduce((sum, item) => {
     const variant = variants.find((v) => v.id === item.variantId);
-    return sum + variant.price * item.quantity;
+    const { price } = getFlashSalePrice(variant);
+
+    return sum + price * item.quantity;
   }, 0);
 
   let voucherId = null;
@@ -79,6 +92,7 @@ export const createOrderService = async (userId, body) => {
   const finalPrice = subtotal - discountAmount + shippingFee;
 
   const order = await prisma.$transaction(async (tx) => {
+    /* ───── create order ───── */
     const newOrder = await tx.order.create({
       data: {
         userId,
@@ -96,6 +110,9 @@ export const createOrderService = async (userId, body) => {
         orderItems: {
           create: orderItems.map((item) => {
             const variant = variants.find((v) => v.id === item.variantId);
+
+            const { price } = getFlashSalePrice(variant);
+
             return {
               productName: variant.product.name,
               thumbnail: variant.product.thumbnail,
@@ -103,7 +120,7 @@ export const createOrderService = async (userId, body) => {
               variantStorage: variant.product.storage,
               variantSku: variant.sku,
               quantity: item.quantity,
-              price: variant.price,
+              price,
               variantId: variant.id,
             };
           }),
@@ -112,6 +129,7 @@ export const createOrderService = async (userId, body) => {
       select: orderSelect,
     });
 
+    /* ───── payment ───── */
     await tx.payment.create({
       data: {
         orderId: newOrder.id,
@@ -121,7 +139,10 @@ export const createOrderService = async (userId, body) => {
       },
     });
 
+    /* ───── update stock ───── */
     for (const item of orderItems) {
+      const variant = variants.find((v) => v.id === item.variantId);
+
       await tx.variant.update({
         where: { id: item.variantId },
         data: {
@@ -129,8 +150,6 @@ export const createOrderService = async (userId, body) => {
           sold: { increment: item.quantity },
         },
       });
-
-      const variant = variants.find((v) => v.id === item.variantId);
 
       await tx.inventoryLog.create({
         data: {
@@ -144,6 +163,7 @@ export const createOrderService = async (userId, body) => {
       });
     }
 
+    /* ───── voucher usage ───── */
     if (voucherId) {
       await tx.voucher.update({
         where: { id: voucherId },
@@ -155,13 +175,18 @@ export const createOrderService = async (userId, body) => {
       });
     }
 
+    /* ───── clear cart ───── */
     if (!bodyItems || bodyItems.length === 0) {
       const cart = await tx.cart.findUnique({ where: { userId } });
+
       if (cart) {
-        await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+        await tx.cartItem.deleteMany({
+          where: { cartId: cart.id },
+        });
       }
     }
 
+    /* ───── notification ───── */
     await tx.notification.create({
       data: {
         userId,
@@ -181,6 +206,9 @@ export const createOrderService = async (userId, body) => {
   });
 };
 
+/* ─────────────────────────────────────────────
+   GET ORDERS
+───────────────────────────────────────────── */
 export const getOrdersService = async (userId, query) => {
   const { page, limit, skip } = parsePagination(query);
   const { status } = query;
@@ -201,6 +229,9 @@ export const getOrdersService = async (userId, query) => {
   return { items, pagination: buildPagination(total, page, limit) };
 };
 
+/* ─────────────────────────────────────────────
+   GET ORDER BY ID
+───────────────────────────────────────────── */
 export const getOrderByIdService = async (userId, orderId) => {
   const order = await prisma.order.findFirst({
     where: { id: parseInt(orderId), userId },
@@ -211,6 +242,9 @@ export const getOrderByIdService = async (userId, orderId) => {
   return order;
 };
 
+/* ─────────────────────────────────────────────
+   CANCEL ORDER
+───────────────────────────────────────────── */
 export const cancelOrderService = async (userId, orderId, cancelReason) => {
   const order = await prisma.order.findFirst({
     where: { id: parseInt(orderId), userId },
@@ -257,23 +291,6 @@ export const cancelOrderService = async (userId, orderId, cancelReason) => {
         },
       });
     }
-
-    if (order.voucherId) {
-      await tx.voucher.update({
-        where: { id: order.voucherId },
-        data: { usedCount: { decrement: 1 } },
-      });
-    }
-
-    await tx.notification.create({
-      data: {
-        userId,
-        type: "ORDER",
-        title: "Đơn hàng đã bị huỷ",
-        content: `Đơn hàng #${order.id} đã bị huỷ. Lý do: ${cancelReason}`,
-        link: `/orders/${order.id}`,
-      },
-    });
 
     return updated;
   });

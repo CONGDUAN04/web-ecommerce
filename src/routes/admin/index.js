@@ -11,6 +11,7 @@ import voucherRoutes from "./api.voucher.js";
 import inventoryRoutes from "./api.inventory.js";
 import orderRoutes from "./api.order.js";
 import paymentRouter from "./api.payment.js";
+import flashSaleRoutes from "./api.flashSale.js";
 const router = Router();
 
 router.use("/payments", paymentRouter);
@@ -25,5 +26,5 @@ router.use("/variants", variantRoutes);
 router.use("/vouchers", voucherRoutes);
 router.use("/inventories", inventoryRoutes);
 router.use("/orders", orderRoutes);
-
+router.use("/flash-sales", flashSaleRoutes);
 export default router;

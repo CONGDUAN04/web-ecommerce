@@ -2,7 +2,11 @@ import prisma from "../../config/client.js";
 import { cartItemSelect } from "../../constants/cart.select.js";
 import { formatCart } from "../../utils/cart.js";
 import { NotFoundError, ValidationError } from "../../utils/AppError.js";
+import { getFlashSalePrice } from "../../utils/flashSale.js";
 
+/* ──────────────────────────────────────────────────────────
+   GET CART
+────────────────────────────────────────────────────────── */
 export const getCartService = async (userId) => {
   const cart = await prisma.cart.findUnique({
     where: { userId },
@@ -19,6 +23,9 @@ export const getCartService = async (userId) => {
   return formatCart(cart);
 };
 
+/* ──────────────────────────────────────────────────────────
+   ADD TO CART
+────────────────────────────────────────────────────────── */
 export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
   await prisma.$transaction(async (tx) => {
     const variant = await tx.variant.findUnique({
@@ -29,6 +36,22 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
         quantity: true,
         isActive: true,
         product: { select: { isActive: true } },
+
+        flashSaleItems: {
+          where: { flashSale: { isActive: true } },
+          select: {
+            salePrice: true,
+            quantity: true,
+            sold: true,
+            flashSale: {
+              select: {
+                startTime: true,
+                endTime: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -44,6 +67,9 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
       );
     }
 
+    // lấy giá flash sale nếu có
+    const { price } = getFlashSalePrice(variant);
+
     const cart = await tx.cart.upsert({
       where: { userId },
       update: {},
@@ -56,18 +82,28 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
 
     if (existingItem) {
       const newQty = existingItem.quantity + quantity;
+
       if (newQty > variant.quantity) {
         throw new ValidationError(
           `Sản phẩm chỉ còn ${variant.quantity} trong kho`,
         );
       }
+
       await tx.cartItem.update({
         where: { id: existingItem.id },
-        data: { quantity: newQty, price: variant.price },
+        data: {
+          quantity: newQty,
+          price,
+        },
       });
     } else {
       await tx.cartItem.create({
-        data: { cartId: cart.id, variantId, quantity, price: variant.price },
+        data: {
+          cartId: cart.id,
+          variantId,
+          quantity,
+          price,
+        },
       });
     }
   });
@@ -75,13 +111,36 @@ export const addToCartService = async (userId, { variantId, quantity = 1 }) => {
   return getCartService(userId);
 };
 
+/* ──────────────────────────────────────────────────────────
+   UPDATE CART ITEM
+────────────────────────────────────────────────────────── */
 export const updateCartItemService = async (userId, itemId, quantity) => {
   await prisma.$transaction(async (tx) => {
     const item = await tx.cartItem.findFirst({
       where: { id: parseInt(itemId), cart: { userId } },
       select: {
         id: true,
-        variant: { select: { quantity: true, price: true } },
+        variant: {
+          select: {
+            price: true,
+            quantity: true,
+            flashSaleItems: {
+              where: { flashSale: { isActive: true } },
+              select: {
+                salePrice: true,
+                quantity: true,
+                sold: true,
+                flashSale: {
+                  select: {
+                    startTime: true,
+                    endTime: true,
+                    isActive: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -93,15 +152,23 @@ export const updateCartItemService = async (userId, itemId, quantity) => {
       );
     }
 
+    const { price } = getFlashSalePrice(item.variant);
+
     await tx.cartItem.update({
       where: { id: item.id },
-      data: { quantity, price: item.variant.price },
+      data: {
+        quantity,
+        price,
+      },
     });
   });
 
   return getCartService(userId);
 };
 
+/* ──────────────────────────────────────────────────────────
+   REMOVE CART ITEM
+────────────────────────────────────────────────────────── */
 export const removeCartItemService = async (userId, itemId) => {
   await prisma.cartItem.deleteMany({
     where: { id: parseInt(itemId), cart: { userId } },
@@ -110,6 +177,9 @@ export const removeCartItemService = async (userId, itemId) => {
   return getCartService(userId);
 };
 
+/* ──────────────────────────────────────────────────────────
+   CLEAR CART
+────────────────────────────────────────────────────────── */
 export const clearCartService = async (userId) => {
   await prisma.cartItem.deleteMany({
     where: { cart: { userId } },

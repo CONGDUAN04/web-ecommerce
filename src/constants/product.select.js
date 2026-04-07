@@ -5,9 +5,11 @@ export const productSelect = {
   storage: true,
   thumbnail: true,
   viewCount: true,
+
   category: { select: { id: true, name: true, slug: true } },
   brand: { select: { id: true, name: true, slug: true, logo: true } },
   group: { select: { id: true, name: true, slug: true, series: true } },
+
   variants: {
     where: { isActive: true },
     select: {
@@ -18,8 +20,29 @@ export const productSelect = {
       comparePrice: true,
       quantity: true,
       sold: true,
+
+      flashSaleItems: {
+        where: {
+          flashSale: {
+            isActive: true,
+          },
+        },
+        select: {
+          salePrice: true,
+          quantity: true,
+          sold: true,
+          flashSale: {
+            select: {
+              startTime: true,
+              endTime: true,
+              isActive: true,
+            },
+          },
+        },
+      },
     },
   },
+
   reviews: {
     select: { rating: true },
   },
