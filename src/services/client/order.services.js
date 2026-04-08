@@ -1,6 +1,6 @@
 import prisma from "../../config/client.js";
 import { parsePagination, buildPagination } from "../../utils/pagination.js";
-import { orderSelect } from "../../constants/order.select.js";
+import { clientOrderSelect } from "../../select/order.select.js";
 import { validateVoucher } from "./voucher.services.js";
 import { NotFoundError, ValidationError } from "../../utils/AppError.js";
 import { getFlashSalePrice } from "../../utils/flashSale.js";
@@ -126,7 +126,7 @@ export const createOrderService = async (userId, body) => {
           }),
         },
       },
-      select: orderSelect,
+      select: clientOrderSelect,
     });
 
     /* ───── payment ───── */
@@ -202,7 +202,7 @@ export const createOrderService = async (userId, body) => {
 
   return prisma.order.findUnique({
     where: { id: order.id },
-    select: orderSelect,
+    select: clientOrderSelect,
   });
 };
 
@@ -218,7 +218,7 @@ export const getOrdersService = async (userId, query) => {
   const [items, total] = await Promise.all([
     prisma.order.findMany({
       where,
-      select: orderSelect,
+      select: clientOrderSelect,
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
@@ -235,7 +235,7 @@ export const getOrdersService = async (userId, query) => {
 export const getOrderByIdService = async (userId, orderId) => {
   const order = await prisma.order.findFirst({
     where: { id: parseInt(orderId), userId },
-    select: orderSelect,
+    select: clientOrderSelect,
   });
 
   if (!order) throw new NotFoundError("Đơn hàng");
@@ -263,7 +263,7 @@ export const cancelOrderService = async (userId, orderId, cancelReason) => {
     const updated = await tx.order.update({
       where: { id: order.id },
       data: { status: "CANCELLED", cancelReason },
-      select: orderSelect,
+      select: clientOrderSelect,
     });
 
     for (const item of order.orderItems) {

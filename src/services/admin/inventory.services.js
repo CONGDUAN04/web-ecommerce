@@ -1,7 +1,10 @@
 import prisma from "../../config/client.js";
 import { parsePagination } from "../../utils/pagination.js";
 import { NotFoundError, ValidationError } from "../../utils/AppError.js";
-
+import {
+  adminInventoryLogSelect,
+  adminInventoryLogSelectShort,
+} from "../../select/inventory.select.js";
 export const getInventoryLogsServices = async ({
   page = 1,
   limit = 10,
@@ -20,31 +23,13 @@ export const getInventoryLogsServices = async ({
     if (startDate) where.createdAt.gte = new Date(startDate);
     if (endDate) where.createdAt.lte = new Date(endDate);
   }
-
   const [items, total] = await Promise.all([
     prisma.inventoryLog.findMany({
       where,
       skip,
       take: l,
       orderBy: { id: "desc" },
-      select: {
-        id: true,
-        action: true,
-        quantity: true,
-        quantityBefore: true,
-        quantityAfter: true,
-        note: true,
-        createdAt: true,
-        variant: {
-          select: {
-            id: true,
-            sku: true,
-            color: true,
-            quantity: true,
-            product: { select: { id: true, name: true, thumbnail: true } },
-          },
-        },
-      },
+      select: adminInventoryLogSelect,
     }),
     prisma.inventoryLog.count({ where }),
   ]);
@@ -58,24 +43,7 @@ export const getInventoryLogsServices = async ({
 export const getInventoryLogByIdServices = async (id) => {
   const log = await prisma.inventoryLog.findUnique({
     where: { id: Number(id) },
-    select: {
-      id: true,
-      action: true,
-      quantity: true,
-      quantityBefore: true,
-      quantityAfter: true,
-      note: true,
-      createdAt: true,
-      variant: {
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          quantity: true,
-          product: { select: { id: true, name: true, thumbnail: true } },
-        },
-      },
-    },
+    select: adminInventoryLogSelect,
   });
 
   if (!log) throw new NotFoundError("Phiếu kho");
@@ -155,23 +123,7 @@ export const createInventoryLogServices = async ({
         quantityAfter,
         note: note ?? null,
       },
-      select: {
-        id: true,
-        action: true,
-        quantity: true,
-        quantityBefore: true,
-        quantityAfter: true,
-        note: true,
-        createdAt: true,
-        variant: {
-          select: {
-            id: true,
-            sku: true,
-            color: true,
-            product: { select: { id: true, name: true } },
-          },
-        },
-      },
+      select: adminInventoryLogSelectShort,
     }),
     prisma.variant.update({
       where: { id: variant.id },

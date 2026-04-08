@@ -6,14 +6,6 @@ import {
   ValidationError,
 } from "../../utils/AppError.js";
 
-const roleSelect = {
-  id: true,
-  name: true,
-  description: true,
-  createdAt: true,
-  _count: { select: { users: true } },
-};
-
 export const getRolesServices = async ({ page = 1, limit = 10 }) => {
   const { page: p, limit: l, skip } = parsePagination({ page, limit });
 
@@ -22,7 +14,7 @@ export const getRolesServices = async ({ page = 1, limit = 10 }) => {
       skip,
       take: l,
       orderBy: { id: "desc" },
-      select: roleSelect,
+      select: adminRoleSelect,
     }),
     prisma.role.count(),
   ]);
@@ -36,7 +28,7 @@ export const getRolesServices = async ({ page = 1, limit = 10 }) => {
 export const getRoleByIdServices = async (id) => {
   const role = await prisma.role.findUnique({
     where: { id: Number(id) },
-    select: roleSelect,
+    select: adminRoleSelect,
   });
 
   if (!role) throw new NotFoundError("Vai trò");

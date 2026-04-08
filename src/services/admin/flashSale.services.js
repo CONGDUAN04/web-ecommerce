@@ -5,37 +5,10 @@ import {
   ConflictError,
   ValidationError,
 } from "../../utils/AppError.js";
-
-const flashSaleSelect = {
-  id: true,
-  name: true,
-  startTime: true,
-  endTime: true,
-  isActive: true,
-  createdAt: true,
-  _count: { select: { items: true } },
-};
-
-const flashSaleDetailSelect = {
-  ...flashSaleSelect,
-  items: {
-    select: {
-      id: true,
-      salePrice: true,
-      quantity: true,
-      sold: true,
-      variant: {
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          price: true,
-          product: { select: { id: true, name: true, thumbnail: true } },
-        },
-      },
-    },
-  },
-};
+import {
+  adminFlashSaleSelect,
+  adminFlashSaleDetailSelect,
+} from "../../select/flashSale.select.js";
 
 export const getFlashSalesServices = async ({ page = 1, limit = 10 }) => {
   const { page: p, limit: l, skip } = parsePagination({ page, limit });
@@ -45,7 +18,7 @@ export const getFlashSalesServices = async ({ page = 1, limit = 10 }) => {
       skip,
       take: l,
       orderBy: { id: "desc" },
-      select: flashSaleSelect,
+      select: adminFlashSaleSelect,
     }),
     prisma.flashSale.count(),
   ]);
@@ -59,7 +32,7 @@ export const getFlashSalesServices = async ({ page = 1, limit = 10 }) => {
 export const getFlashSaleByIdServices = async (id) => {
   const flashSale = await prisma.flashSale.findUnique({
     where: { id: Number(id) },
-    select: flashSaleDetailSelect,
+    select: adminFlashSaleDetailSelect,
   });
 
   if (!flashSale) throw new NotFoundError("Flash sale");
@@ -118,7 +91,7 @@ export const createFlashSaleServices = async ({
         })),
       },
     },
-    select: flashSaleDetailSelect,
+    select: adminFlashSaleDetailSelect,
   });
 };
 
@@ -154,7 +127,7 @@ export const updateFlashSaleServices = async (id, data) => {
   return prisma.flashSale.update({
     where: { id },
     data: updateData,
-    select: flashSaleDetailSelect,
+    select: adminFlashSaleDetailSelect,
   });
 };
 
@@ -231,7 +204,7 @@ export const addFlashSaleItemsServices = async (id, items) => {
 
   return prisma.flashSale.findUnique({
     where: { id },
-    select: flashSaleDetailSelect,
+    select: adminFlashSaleDetailSelect,
   });
 };
 

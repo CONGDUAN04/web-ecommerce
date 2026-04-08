@@ -5,23 +5,7 @@ import {
   ConflictError,
   ValidationError,
 } from "../../utils/AppError.js";
-
-const variantInclude = {
-  product: {
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      groupId: true,
-      brandId: true,
-      categoryId: true,
-      group: {
-        select: { id: true, name: true, series: true },
-      },
-    },
-  },
-};
-
+import { adminVariantInclude } from "../../select/variant.select.js";
 export const getVariantsServices = async ({
   page = 1,
   limit = 10,
@@ -40,7 +24,7 @@ export const getVariantsServices = async ({
       skip,
       take: l,
       orderBy: [{ productId: "asc" }, { color: "asc" }],
-      include: variantInclude,
+      include: adminVariantInclude,
     }),
     prisma.variant.count({ where }),
   ]);
@@ -54,7 +38,7 @@ export const getVariantsServices = async ({
 export const getVariantByIdServices = async (id) => {
   const variant = await prisma.variant.findUnique({
     where: { id: Number(id) },
-    include: variantInclude,
+    include: adminVariantInclude,
   });
 
   if (!variant) throw new NotFoundError("Variant");
@@ -110,7 +94,7 @@ export const createVariantServices = async (data) => {
       price: data.price,
       comparePrice: data.comparePrice ?? null,
     },
-    include: variantInclude,
+    include: adminVariantInclude,
   });
 };
 
@@ -161,7 +145,7 @@ export const updateVariantServices = async (id, data) => {
   return prisma.variant.update({
     where: { id },
     data: updateData,
-    include: variantInclude,
+    include: adminVariantInclude,
   });
 };
 

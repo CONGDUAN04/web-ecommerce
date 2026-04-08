@@ -6,17 +6,7 @@ import {
   ConflictError,
   ValidationError,
 } from "../../utils/AppError.js";
-
-const userSelect = {
-  id: true,
-  username: true,
-  fullName: true,
-  phone: true,
-  avatar: true,
-  accountType: true,
-  createdAt: true,
-  role: { select: { id: true, name: true } },
-};
+import { adminUserSelect } from "../../select/user.select.js";
 
 export const getUsersServices = async ({ page = 1, limit = 10 }) => {
   const { page: p, limit: l, skip } = parsePagination({ page, limit });
@@ -26,7 +16,7 @@ export const getUsersServices = async ({ page = 1, limit = 10 }) => {
       skip,
       take: l,
       orderBy: { id: "desc" },
-      select: userSelect,
+      select: adminUserSelect,
     }),
     prisma.user.count(),
   ]);
@@ -40,7 +30,7 @@ export const getUsersServices = async ({ page = 1, limit = 10 }) => {
 export const getUserByIdServices = async (id) => {
   const user = await prisma.user.findUnique({
     where: { id: Number(id) },
-    select: userSelect,
+    select: adminUserSelect,
   });
 
   if (!user) throw new NotFoundError("Người dùng");
@@ -77,7 +67,7 @@ export const createUserServices = async (data, avatar) => {
       accountType: "SYSTEM",
       roleId: Number(data.roleId),
     },
-    select: userSelect,
+    select: adminUserSelect,
   });
 };
 
@@ -115,7 +105,7 @@ export const updateUserServices = async (id, data, avatar) => {
   return prisma.user.update({
     where: { id: userId },
     data: updateData,
-    select: userSelect,
+    select: adminUserSelect,
   });
 };
 

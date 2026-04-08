@@ -2,6 +2,7 @@ import prisma from "../../config/client.js";
 import { parsePagination } from "../../utils/pagination.js";
 import { generateSlug } from "../../utils/slug.js";
 import { NotFoundError, ConflictError } from "../../utils/AppError.js";
+import { adminCategorySelect } from "../../select/category.select.js";
 
 export const getCategoriesServices = async ({ page = 1, limit = 10 }) => {
   const { page: p, limit: l, skip } = parsePagination({ page, limit });
@@ -11,13 +12,7 @@ export const getCategoriesServices = async ({ page = 1, limit = 10 }) => {
       skip,
       take: l,
       orderBy: { id: "desc" },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        createdAt: true,
-        _count: { select: { products: true } },
-      },
+      select: adminCategorySelect,
     }),
     prisma.category.count(),
   ]);
@@ -36,13 +31,7 @@ export const getCategoriesServices = async ({ page = 1, limit = 10 }) => {
 export const getCategoryByIdServices = async (id) => {
   const category = await prisma.category.findUnique({
     where: { id: Number(id) },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      createdAt: true,
-      _count: { select: { products: true } },
-    },
+    select: adminCategorySelect,
   });
 
   if (!category) throw new NotFoundError("Danh mục");

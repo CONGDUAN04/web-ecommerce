@@ -5,30 +5,7 @@ import {
   ConflictError,
   ValidationError,
 } from "../../utils/AppError.js";
-
-const paymentListSelect = {
-  id: true,
-  amount: true,
-  provider: true,
-  status: true,
-  transactionId: true,
-  refundAmount: true,
-  refundId: true,
-  refundNote: true,
-  createdAt: true,
-  updatedAt: true,
-  order: {
-    select: {
-      id: true,
-      finalPrice: true,
-      status: true,
-      receiverName: true,
-      receiverPhone: true,
-      user: { select: { id: true, username: true, fullName: true } },
-    },
-  },
-};
-
+import { adminPaymentSelect } from "../../select/payment.select.js";
 export const getPaymentsServices = async ({
   page = 1,
   limit = 10,
@@ -68,7 +45,7 @@ export const getPaymentsServices = async ({
       skip,
       take: l,
       orderBy: { createdAt: "desc" },
-      select: paymentListSelect,
+      select: adminPaymentSelect,
     }),
     prisma.payment.count({ where }),
   ]);
@@ -82,7 +59,7 @@ export const getPaymentsServices = async ({
 export const getPaymentByIdServices = async (id) => {
   const payment = await prisma.payment.findUnique({
     where: { id: Number(id) },
-    select: paymentListSelect,
+    select: adminPaymentSelect,
   });
 
   if (!payment) throw new NotFoundError("Giao dịch");
@@ -110,7 +87,7 @@ export const confirmBankingServices = async (id, { transactionId }) => {
     const updated = await tx.payment.update({
       where: { id: Number(id) },
       data: { status: "SUCCESS", transactionId },
-      select: paymentListSelect,
+      select: adminPaymentSelect,
     });
 
     await tx.order.update({

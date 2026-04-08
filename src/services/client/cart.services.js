@@ -1,5 +1,5 @@
 import prisma from "../../config/client.js";
-import { cartItemSelect } from "../../constants/cart.select.js";
+import { clientCartSelect } from "../../select/cart.select.js";
 import { formatCart } from "../../utils/cart.js";
 import { NotFoundError, ValidationError } from "../../utils/AppError.js";
 import { getFlashSalePrice } from "../../utils/flashSale.js";
@@ -13,7 +13,7 @@ export const getCartService = async (userId) => {
     select: {
       id: true,
       cartItems: {
-        select: cartItemSelect,
+        select: clientCartSelect,
         orderBy: { createdAt: "desc" },
       },
     },

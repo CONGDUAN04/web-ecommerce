@@ -6,36 +6,10 @@ import {
   ForbiddenError,
   ValidationError,
 } from "../../utils/AppError.js";
-
-const reviewSelect = {
-  id: true,
-  rating: true,
-  comment: true,
-  isVerifiedPurchase: true,
-  createdAt: true,
-  user: {
-    select: { id: true, fullName: true, avatar: true },
-  },
-  images: {
-    select: { id: true, imageUrl: true },
-  },
-  replies: {
-    select: {
-      id: true,
-      comment: true,
-      createdAt: true,
-      user: { select: { id: true, fullName: true, avatar: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  },
-};
-
-const sortMap = {
-  newest: { createdAt: "desc" },
-  oldest: { createdAt: "asc" },
-  rating_asc: { rating: "asc" },
-  rating_desc: { rating: "desc" },
-};
+import {
+  clientReviewSelect,
+  clientSortMap,
+} from "../../select/review.select.js";
 
 const checkVerifiedPurchase = async (userId, productId) => {
   const purchased = await prisma.orderItem.findFirst({
@@ -78,8 +52,8 @@ export const getReviewsByProductServices = async (productId, query = {}) => {
       where,
       skip,
       take: l,
-      orderBy: sortMap[sort] ?? sortMap.newest,
-      select: reviewSelect,
+      orderBy: clientSortMap[sort] ?? clientSortMap.newest,
+      select: clientReviewSelect,
     }),
     prisma.review.count({ where }),
     // Thống kê rating
@@ -147,7 +121,7 @@ export const createReviewServices = async (userId, productId, data, files) => {
       userId,
       images: imageUrls.length > 0 ? { create: imageUrls } : undefined,
     },
-    select: reviewSelect,
+    select: clientReviewSelect,
   });
 
   return review;
@@ -179,7 +153,7 @@ export const updateReviewServices = async (userId, reviewId, data, files) => {
   return prisma.review.update({
     where: { id: reviewId },
     data: updateData,
-    select: reviewSelect,
+    select: clientReviewSelect,
   });
 };
 

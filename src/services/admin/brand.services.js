@@ -6,6 +6,7 @@ import {
   ConflictError,
   ValidationError,
 } from "../../utils/AppError.js";
+import { adminBrandSelect } from "../../select/brand.select.js";
 
 export const getBrandsServices = async ({ page = 1, limit = 10 }) => {
   const { page: p, limit: l, skip } = parsePagination({ page, limit });
@@ -15,14 +16,7 @@ export const getBrandsServices = async ({ page = 1, limit = 10 }) => {
       skip,
       take: l,
       orderBy: { id: "desc" },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logo: true,
-        createdAt: true,
-        _count: { select: { products: true } },
-      },
+      select: adminBrandSelect,
     }),
     prisma.brand.count(),
   ]);
@@ -41,14 +35,7 @@ export const getBrandsServices = async ({ page = 1, limit = 10 }) => {
 export const getBrandByIdServices = async (id) => {
   const brand = await prisma.brand.findUnique({
     where: { id: Number(id) },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      logo: true,
-      createdAt: true,
-      _count: { select: { products: true } },
-    },
+    select: adminBrandSelect,
   });
 
   if (!brand) throw new NotFoundError("Thương hiệu");

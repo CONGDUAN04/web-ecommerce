@@ -5,7 +5,10 @@ import {
   ValidationError,
   ConflictError,
 } from "../../utils/AppError.js";
-
+import {
+  adminOrderDetailSelect,
+  adminOrderListSelect,
+} from "../../select/order.select.js";
 // ========================
 // STATE MACHINE
 // ========================
@@ -19,7 +22,6 @@ const VALID_TRANSITIONS = {
   RETURNED: [],
   CANCELLED: [],
 };
-
 const validateTransition = (current, next) => {
   if (!VALID_TRANSITIONS[current]?.includes(next)) {
     throw new ValidationError(
@@ -27,94 +29,6 @@ const validateTransition = (current, next) => {
     );
   }
 };
-
-// ========================
-// SELECT HELPERS
-// ========================
-const orderListSelect = {
-  id: true,
-  subtotal: true,
-  discountAmount: true,
-  shippingFee: true,
-  finalPrice: true,
-  receiverName: true,
-  receiverPhone: true,
-  status: true,
-  paymentMethod: true,
-  paymentStatus: true,
-  trackingCode: true,
-  createdAt: true,
-  user: { select: { id: true, username: true, fullName: true } },
-  voucher: { select: { id: true, code: true } },
-  _count: { select: { orderItems: true } },
-};
-
-const orderDetailSelect = {
-  ...orderListSelect,
-  receiverAddress: true,
-  note: true,
-  cancelReason: true,
-  updatedAt: true,
-  userId: true,
-  orderItems: {
-    select: {
-      id: true,
-      quantity: true,
-      price: true,
-      productName: true,
-      variantColor: true,
-      variantStorage: true,
-      variantSku: true,
-      thumbnail: true,
-      variant: { select: { id: true, sku: true, color: true } },
-    },
-  },
-  payment: {
-    select: {
-      id: true,
-      amount: true,
-      provider: true,
-      status: true,
-      transactionId: true,
-      refundAmount: true,
-      refundId: true,
-      refundNote: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  },
-  returnRequest: {
-    select: {
-      id: true,
-      reason: true,
-      note: true,
-      evidence: true,
-      adminNote: true,
-      refundAmount: true,
-      isApproved: true,
-      resolvedAt: true,
-      createdAt: true,
-      returnItems: {
-        select: {
-          id: true,
-          quantity: true,
-          reason: true,
-          isRestockable: true,
-          orderItem: {
-            select: {
-              id: true,
-              productName: true,
-              variantColor: true,
-              variantStorage: true,
-              variantSku: true,
-            },
-          },
-        },
-      },
-    },
-  },
-};
-
 // ========================
 // HELPER
 // ========================
@@ -123,7 +37,6 @@ const findOrderOrThrow = async (id, include = {}) => {
   if (!order) throw new NotFoundError("Đơn hàng");
   return order;
 };
-
 // ========================
 // SERVICES
 // ========================
@@ -168,7 +81,7 @@ export const getOrdersServices = async ({
       skip,
       take: l,
       orderBy: { createdAt: "desc" },
-      select: orderListSelect,
+      select: adminOrderListSelect,
     }),
     prisma.order.count({ where }),
   ]);
@@ -182,7 +95,7 @@ export const getOrdersServices = async ({
 export const getOrderByIdServices = async (id) => {
   const order = await prisma.order.findUnique({
     where: { id: Number(id) },
-    select: orderDetailSelect,
+    select: adminOrderDetailSelect,
   });
   if (!order) throw new NotFoundError("Đơn hàng");
   return order;
@@ -319,7 +232,6 @@ export const cancelOrderServices = async (id, { cancelReason }) => {
 
   return getOrderByIdServices(id);
 };
-
 // ========================
 // RETURN FLOW
 // ========================
