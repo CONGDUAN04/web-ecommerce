@@ -6,12 +6,7 @@ import {
   ConflictError,
   ValidationError,
 } from "../../utils/AppError.js";
-
-const productInclude = {
-  brand: { select: { id: true, name: true, slug: true, logo: true } },
-  category: { select: { id: true, name: true, slug: true } },
-  group: { select: { id: true, name: true, slug: true, series: true } },
-};
+import { adminProductInclude } from "../../select/product.select.js";
 
 export const getProductsServices = async ({
   page = 1,
@@ -36,7 +31,7 @@ export const getProductsServices = async ({
       take: l,
       orderBy: { createdAt: "desc" },
       include: {
-        ...productInclude,
+        ...adminProductInclude,
         variants: {
           where: { isActive: true },
           select: {
@@ -64,7 +59,7 @@ export const getProductByIdServices = async (id) => {
   const product = await prisma.product.findUnique({
     where: { id: Number(id) },
     include: {
-      ...productInclude,
+      ...adminProductInclude,
       variants: {
         where: { isActive: true },
         orderBy: [{ price: "asc" }, { color: "asc" }],
@@ -83,7 +78,7 @@ export const getProductBySlugServices = async (slug) => {
   const product = await prisma.product.findUnique({
     where: { slug },
     include: {
-      ...productInclude,
+      ...adminProductInclude,
       variants: {
         where: { isActive: true },
         orderBy: [{ color: "asc" }],

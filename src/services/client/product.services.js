@@ -2,7 +2,7 @@ import prisma from "../../config/client.js";
 import { parsePagination, buildPagination } from "../../utils/pagination.js";
 import { attachReviewStats } from "../../utils/review.js";
 import { applySortInMemory } from "../../utils/sort.js";
-import { productSelect } from "../../constants/product.select.js";
+import { clientProductSelect } from "../../select/product.select.js";
 import { NotFoundError } from "../../utils/AppError.js";
 import { getFlashSalePrice } from "../../utils/flashSale.js";
 
@@ -53,7 +53,7 @@ export const getProductsService = async (query) => {
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      select: productSelect,
+      select: clientProductSelect,
       orderBy: dbOrderBy,
       skip,
       take: limit,
@@ -74,7 +74,7 @@ export const getProductBySlugService = async (slug) => {
   const product = await prisma.product.findUnique({
     where: { slug },
     select: {
-      ...productSelect,
+      ...clientProductSelect,
       description: true,
       images: {
         select: { id: true, imageUrl: true, sortOrder: true },
@@ -124,7 +124,7 @@ export const searchProductsService = async (query) => {
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      select: productSelect,
+      select: clientProductSelect,
       orderBy: { viewCount: "desc" },
       skip,
       take: limit,
@@ -155,7 +155,7 @@ export const getRelatedProductsService = async (slug) => {
       id: { not: product.id },
       groupId: product.groupId,
     },
-    select: productSelect,
+    select: clientProductSelect,
     orderBy: { viewCount: "desc" },
     take: 8,
   });
@@ -193,7 +193,7 @@ export const getProductGroupBySlugService = async (slug) => {
       isActive: true,
       groupId: group.id,
     },
-    select: productSelect,
+    select: clientProductSelect,
     orderBy: { viewCount: "desc" },
   });
 
