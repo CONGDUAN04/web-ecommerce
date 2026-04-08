@@ -1,110 +1,97 @@
 import prisma from "../../config/client.js";
 import crypto from "crypto";
+import { NotFoundError, ValidationError } from "../../utils/AppError.js";
 
-const REFRESH_TOKEN_EXPIRES_DAYS = 7;
+const REFRESH_TOKEN_EXPIRES_DAYS =
+  Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS) || 7;
 
-// Tạo session mới khi login
 export const createSession = async ({ userId, userAgent, ipAddress }) => {
-    const refreshToken = crypto.randomBytes(64).toString("hex");
+  if (!userId) throw new ValidationError("userId là bắt buộc");
 
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRES_DAYS);
+  const refreshToken = crypto.randomBytes(64).toString("hex");
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRES_DAYS);
 
-    const session = await prisma.session.create({
-        data: {
-            userId,
-            refreshToken,
-            userAgent: userAgent ?? null,
-            ipAddress: ipAddress ?? null,
-            expiresAt,
-        },
-    });
-
-    return session;
+  return prisma.session.create({
+    data: {
+      userId,
+      refreshToken,
+      userAgent: userAgent ?? null,
+      ipAddress: ipAddress ?? null,
+      expiresAt,
+    },
+  });
 };
 
-// Tìm session theo refresh token (kèm thông tin user)
 export const findSessionByToken = async (token) => {
-    const session = await prisma.session.findUnique({
-        where: { refreshToken: token },
-        include: {
-            user: {
-                include: { role: true },
-            },
-        },
-    });
+  if (!token) throw new ValidationError("Token là bắt buộc");
 
-    return session;
+  return prisma.session.findUnique({
+    where: { refreshToken: token },
+    include: {
+      user: { include: { role: true } },
+    },
+  });
 };
 
-// Validate session — kiểm tra hợp lệ, chưa thu hồi, chưa hết hạn
 export const validateSession = (session) => {
-    if (!session) {
-        throw new Error("Session không tồn tại");
-    }
-    if (session.isRevoked) {
-        throw new Error("Session đã bị thu hồi");
-    }
-    if (new Date() > session.expiresAt) {
-        throw new Error("Session đã hết hạn");
-    }
-    return true;
+  if (!session) throw new NotFoundError("Session không tồn tại");
+  if (session.isRevoked) throw new ValidationError("Session đã bị thu hồi");
+  if (new Date() > session.expiresAt)
+    throw new ValidationError("Session đã hết hạn");
+
+  return true;
 };
 
-// Thu hồi 1 session (logout thiết bị hiện tại)
 export const revokeSession = async (refreshToken) => {
-    const session = await prisma.session.findUnique({
-        where: { refreshToken },
-    });
+  if (!refreshToken) throw new ValidationError("Token là bắt buộc");
 
-    if (!session) return null;
+  const session = await prisma.session.findUnique({
+    where: { refreshToken },
+  });
+  if (!session) return null;
 
-    return prisma.session.update({
-        where: { refreshToken },
-        data: { isRevoked: true },
-    });
+  return prisma.session.update({
+    where: { refreshToken },
+    data: { isRevoked: true },
+  });
 };
 
-// Thu hồi toàn bộ session của user (logout all devices)
 export const revokeAllUserSessions = async (userId) => {
-    return prisma.session.updateMany({
-        where: {
-            userId,
-            isRevoked: false,
-        },
-        data: { isRevoked: true },
-    });
+  if (!userId) throw new ValidationError("userId là bắt buộc");
+
+  return prisma.session.updateMany({
+    where: { userId, isRevoked: false },
+    data: { isRevoked: true },
+  });
 };
 
-// Lấy danh sách session đang active của user
 export const getActiveSessions = async (userId) => {
-    return prisma.session.findMany({
-        where: {
-            userId,
-            isRevoked: false,
-            expiresAt: { gt: new Date() },
-        },
-        select: {
-            id: true,
-            userAgent: true,
-            ipAddress: true,
-            createdAt: true,
-            expiresAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-    });
+  if (!userId) throw new ValidationError("userId là bắt buộc");
+
+  return prisma.session.findMany({
+    where: {
+      userId,
+      isRevoked: false,
+      expiresAt: { gt: new Date() },
+    },
+    select: {
+      id: true,
+      userAgent: true,
+      ipAddress: true,
+      createdAt: true,
+      expiresAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
 };
 
-// Xóa session hết hạn hoặc đã thu hồi — dùng cho cron job
 export const deleteExpiredSessions = async () => {
-    const result = await prisma.session.deleteMany({
-        where: {
-            OR: [
-                { expiresAt: { lt: new Date() } },
-                { isRevoked: true },
-            ],
-        },
-    });
+  const result = await prisma.session.deleteMany({
+    where: {
+      OR: [{ expiresAt: { lt: new Date() } }, { isRevoked: true }],
+    },
+  });
 
-    return result.count;
+  return result.count;
 };

@@ -12,7 +12,6 @@ import {
   NotFoundError,
   ConflictError,
   UnauthorizedError,
-  ValidationError,
 } from "../../utils/AppError.js";
 
 export const isEmailExist = async (email) => {
