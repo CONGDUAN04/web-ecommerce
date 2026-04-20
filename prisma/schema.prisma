@@ -82,6 +82,7 @@ model Role {
   users User[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model User {
@@ -91,6 +92,7 @@ model User {
   fullName    String?
   phone       String?
   avatar      String?
+  avatarId    String?
   accountType AccountType @default(SYSTEM)
 
   roleId Int?
@@ -107,7 +109,9 @@ model User {
   voucherUsages  VoucherUsage[]
   returnRequests ReturnRequest[]
 
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([roleId])
   @@index([phone])
@@ -144,8 +148,10 @@ model Address {
   ward      String?
   isDefault Boolean @default(false)
 
-  userId Int
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([userId, isDefault])
@@ -164,18 +170,21 @@ model Category {
   products      Product[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Brand {
-  id   Int     @id @default(autoincrement())
-  name String  @unique
-  slug String  @unique
-  logo String?
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  slug   String  @unique
+  logo   String?
+  logoId String?
 
   productGroups ProductGroup[]
   products      Product[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ProductGroup = dòng sản phẩm, vd: "iPhone 16 Series"
@@ -186,6 +195,7 @@ model ProductGroup {
   series      String?
   description String?
   thumbnail   String?
+  thumbnailId String?
   isActive    Boolean @default(true)
 
   brandId    Int
@@ -212,6 +222,7 @@ model Product {
   storage     Int? // GB — null nếu không có storage (phụ kiện, tai nghe...)
   description String? @db.Text
   thumbnail   String?
+  thumbnailId String?
   viewCount   Int     @default(0)
   isActive    Boolean @default(true)
 
@@ -228,8 +239,9 @@ model Product {
   reviews        Review[]
   wishlists      Wishlist[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([groupId])
   @@index([brandId])
@@ -275,12 +287,15 @@ model Variant {
 }
 
 model ProductImage {
-  id        Int    @id @default(autoincrement())
-  imageUrl  String
-  sortOrder Int    @default(0)
+  id         Int    @id @default(autoincrement())
+  imageUrl   String
+  imageUrlId String
+  sortOrder  Int    @default(0)
 
   productId Int
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([productId])
 }
@@ -291,7 +306,9 @@ model ProductSpecification {
   value String // vd: "6.9 inch"
 
   productId Int
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([productId])
 }
@@ -398,6 +415,8 @@ model OrderItem {
   variant   Variant @relation(fields: [variantId], references: [id])
 
   returnItems ReturnItem[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([orderId])
   @@index([variantId])
@@ -432,14 +451,13 @@ model Payment {
 model ReturnRequest {
   id Int @id @default(autoincrement())
 
-  reason   ReturnReason
-  note     String?      @db.Text
-  evidence String?      @db.Text // JSON array URL ảnh/video minh chứng
+  reason ReturnReason
+  note   String?      @db.Text
 
-  // Phản hồi của admin
+  // admin
   adminNote    String?
-  refundAmount Int? // Admin quyết định hoàn bao nhiêu
-  isApproved   Boolean? // null = chưa xử lý | true = duyệt | false = từ chối
+  refundAmount Int?
+  isApproved   Boolean?
   resolvedAt   DateTime?
 
   orderId Int   @unique
@@ -448,6 +466,7 @@ model ReturnRequest {
   user    User  @relation(fields: [userId], references: [id])
 
   returnItems ReturnItem[]
+  evidences   ReturnEvidence[] // 👈 thêm
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -455,6 +474,20 @@ model ReturnRequest {
   @@index([userId])
   @@index([isApproved])
   @@index([createdAt])
+}
+
+model ReturnEvidence {
+  id       Int     @id @default(autoincrement())
+  url      String
+  publicId String // 👈 để xoá Cloudinary
+  type     String? // image | video (optional)
+
+  returnRequestId Int
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([returnRequestId])
 }
 
 model ReturnItem {
@@ -467,6 +500,8 @@ model ReturnItem {
   orderItemId     Int
   returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
   orderItem       OrderItem     @relation(fields: [orderItemId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@index([returnRequestId])
   @@index([orderItemId])
@@ -500,6 +535,8 @@ model Voucher {
 
   orders        Order[]
   voucherUsages VoucherUsage[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([code])
   @@index([isActive])
@@ -518,6 +555,7 @@ model VoucherUsage {
   order   Order   @relation(fields: [orderId], references: [id])
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, voucherId, orderId])
   @@index([userId, voucherId])
@@ -542,6 +580,7 @@ model InventoryLog {
   variant         Variant @relation(fields: [variantId], references: [id])
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([variantId])
   @@index([action])
@@ -580,11 +619,11 @@ model Review {
 }
 
 model ReviewImage {
-  id       Int    @id @default(autoincrement())
-  imageUrl String
-
-  reviewId Int
-  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  id         Int    @id @default(autoincrement())
+  imageUrl   String
+  imageUrlId String
+  reviewId   Int
+  review     Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
   @@index([reviewId])
 }
@@ -636,6 +675,7 @@ model FlashSale {
   items FlashSaleItem[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isActive])
   @@index([startTime, endTime])
@@ -673,6 +713,7 @@ model Notification {
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
@@ -686,11 +727,13 @@ model Banner {
   id        Int     @id @default(autoincrement())
   title     String?
   image     String
+  imageId   String
   link      String?
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isActive])
   @@index([sortOrder])
@@ -699,12 +742,14 @@ model Banner {
 model Slider {
   id        Int     @id @default(autoincrement())
   image     String
+  imageId   String
   title     String?
   subTitle  String?
   link      String?
   sortOrder Int     @default(0)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([sortOrder])
 }

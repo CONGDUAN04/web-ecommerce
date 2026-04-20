@@ -6,6 +6,7 @@ import authRouter from "./routes/client/api.auth.js";
 import clientRoutes from "./routes/client/index.js";
 import { checkValidJWT, isAdmin } from "./middleware/jwt.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import uploadRoutes from "./routes/upload/api.upload.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -24,7 +25,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static("public"));
-
+app.use("/api/upload", checkValidJWT, uploadRoutes);
 /* ---------- PUBLIC ---------- */
 app.use("/api", authRouter);
 

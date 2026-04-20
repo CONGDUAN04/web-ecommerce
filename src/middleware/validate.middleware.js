@@ -5,6 +5,8 @@ export const validate = (schema) => async (req, res, next) => {
     params: req.params,
     query: req.query,
     body: req.body ?? {},
+    file: req.file,
+    files: req.files,
   });
 
   if (!result.success) {
