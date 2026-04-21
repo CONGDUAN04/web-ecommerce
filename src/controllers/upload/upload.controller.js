@@ -7,7 +7,7 @@ export const getUploadSignature = async (req, res, next) => {
   try {
     const { type } = req.body;
 
-    const data = generateUploadSignature(type);
+    const data = generateUploadSignature(type, req.user);
 
     return res.json({
       ...data,
@@ -18,6 +18,7 @@ export const getUploadSignature = async (req, res, next) => {
     next(err);
   }
 };
+
 export const deleteFile = async (req, res, next) => {
   try {
     const { publicId } = req.body;

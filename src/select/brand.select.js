@@ -4,6 +4,7 @@ export const adminBrandSelect = {
   slug: true,
   logo: true,
   createdAt: true,
+  updatedAt: true,
   _count: {
     select: { products: true },
   },

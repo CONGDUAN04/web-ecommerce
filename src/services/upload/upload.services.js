@@ -1,8 +1,13 @@
 import cloudinary from "../../config/cloudinary.js";
 import { UPLOAD_TYPES } from "../../constants/uploadFolder.js";
 import { ROLE } from "../../constants/index.js";
+import { ValidationError } from "../../utils/AppError.js";
 
 export const generateUploadSignature = (type, user) => {
+  if (!UPLOAD_TYPES[type]) {
+    throw new ValidationError("Loại upload không hợp lệ");
+  }
+
   const timestamp = Math.round(Date.now() / 1000);
 
   let public_id = "";
@@ -15,6 +20,7 @@ export const generateUploadSignature = (type, user) => {
       .substring(2, 8)}`;
   }
 
+  // ✅ CHỈ SIGN 3 FIELD
   const paramsToSign = {
     timestamp,
     folder: UPLOAD_TYPES[type].folder,
@@ -29,32 +35,36 @@ export const generateUploadSignature = (type, user) => {
   return {
     timestamp,
     signature,
-    folder: UPLOAD_TYPES[type].folder,
+    folder: paramsToSign.folder,
     public_id,
+
+    // 👇 KHÔNG SIGN, CHỈ GỬI FE
+    allowed_formats: "jpg,png,jpeg",
   };
 };
 export const deleteFileService = async (publicId, user) => {
   if (!publicId) {
-    throw new Error("Thiếu publicId");
+    throw new ValidationError("Thiếu publicId");
   }
 
   if (user.role === ROLE.ADMIN) {
     const result = await cloudinary.uploader.destroy(publicId);
     if (result.result !== "ok") {
-      throw new Error("Xoá file thất bại");
+      throw new ValidationError("Xoá file thất bại");
     }
     return result;
   }
+
   const isAvatar = publicId.startsWith(`avatar_${user.id}_`);
 
   if (!isAvatar) {
-    throw new Error("Bạn không có quyền xoá file này");
+    throw new ValidationError("Bạn không có quyền xoá file này");
   }
 
   const result = await cloudinary.uploader.destroy(publicId);
 
   if (result.result !== "ok") {
-    throw new Error("Xoá file thất bại");
+    throw new ValidationError("Xoá file thất bại");
   }
 
   return result;
