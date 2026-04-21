@@ -64,7 +64,28 @@ export const updateBrandServices = async (id, data) => {
   return updated;
 };
 
-export const deleteBrandServices = (id) => {
+export const deleteBrandServices = async (id) => {
+  id = Number(id);
+
+  const productCount = await prisma.product.count({
+    where: { brandId: id },
+  });
+
+  if (productCount > 0) {
+    throw new ConflictError(
+      `Không thể xoá — thương hiệu đang chứa ${productCount} sản phẩm`,
+    );
+  }
+
+  const groupCount = await prisma.productGroup.count({
+    where: { brandId: id },
+  });
+
+  if (groupCount > 0) {
+    throw new ConflictError(
+      `Không thể xoá — thương hiệu đang chứa ${groupCount} nhóm sản phẩm`,
+    );
+  }
   return deleteWithFile(
     prisma.brand,
     id,

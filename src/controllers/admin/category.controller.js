@@ -1,5 +1,3 @@
-import { asyncHandler } from "../../middleware/asyncHandler.js";
-import { ApiResponse } from "../../utils/response.js";
 import {
   getCategoriesServices,
   getCategoryByIdServices,
@@ -7,31 +5,25 @@ import {
   updateCategoryServices,
   deleteCategoryServices,
 } from "../../services/admin/category.services.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
+import {
+  handleGetAll,
+  handleGetById,
+  handleCreate,
+  handleUpdate,
+  handleDelete,
+} from "../common/base.controller.js";
+export const getCategories = asyncHandler(handleGetAll(getCategoriesServices));
+export const getCategoryById = asyncHandler(
+  handleGetById(getCategoryByIdServices),
+);
+export const createCategory = asyncHandler(
+  handleCreate(createCategoryServices),
+);
+export const updateCategory = asyncHandler(
+  handleUpdate(updateCategoryServices),
+);
 
-export const getCategories = asyncHandler(async (req, res) => {
-  const result = await getCategoriesServices(req.validated.query);
-  return ApiResponse.success(res, result.items, { meta: result.pagination });
-});
-
-export const getCategoryById = asyncHandler(async (req, res) => {
-  const category = await getCategoryByIdServices(req.validated.params.id);
-  return ApiResponse.success(res, category);
-});
-
-export const createCategory = asyncHandler(async (req, res) => {
-  const category = await createCategoryServices(req.validated.body);
-  return ApiResponse.created(res, category);
-});
-
-export const updateCategory = asyncHandler(async (req, res) => {
-  const category = await updateCategoryServices(
-    req.validated.params.id,
-    req.validated.body,
-  );
-  return ApiResponse.updated(res, category);
-});
-
-export const deleteCategory = asyncHandler(async (req, res) => {
-  await deleteCategoryServices(req.validated.params.id);
-  return ApiResponse.deleted(res);
-});
+export const deleteCategory = asyncHandler(
+  handleDelete(deleteCategoryServices),
+);
