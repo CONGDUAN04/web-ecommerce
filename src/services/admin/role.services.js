@@ -1,42 +1,29 @@
 import prisma from "../../config/client.js";
-import { parsePagination } from "../../utils/pagination.js";
+import { adminRoleSelect } from "../../select/role.select.js";
+import { getAll, getById } from "../../services/common/base.services.js";
+
 import {
   NotFoundError,
   ConflictError,
   ValidationError,
 } from "../../utils/AppError.js";
 
-export const getRolesServices = async ({ page = 1, limit = 10 }) => {
-  const { page: p, limit: l, skip } = parsePagination({ page, limit });
-
-  const [items, total] = await Promise.all([
-    prisma.role.findMany({
-      skip,
-      take: l,
-      orderBy: { id: "desc" },
-      select: adminRoleSelect,
-    }),
-    prisma.role.count(),
-  ]);
-
-  return {
-    items,
-    pagination: { page: p, limit: l, total, totalPages: Math.ceil(total / l) },
-  };
-};
-
-export const getRoleByIdServices = async (id) => {
-  const role = await prisma.role.findUnique({
-    where: { id: Number(id) },
+export const getRolesServices = (query) => {
+  return getAll(prisma.role, query, {
+    orderBy: { id: "desc" },
     select: adminRoleSelect,
   });
+};
 
-  if (!role) throw new NotFoundError("Vai trò");
-  return role;
+export const getRoleByIdServices = (id) => {
+  return getById(prisma.role, id, { select: adminRoleSelect }, "vai trò");
 };
 
 export const createRoleServices = async (data) => {
-  const existed = await prisma.role.findUnique({ where: { name: data.name } });
+  const existed = await prisma.role.findUnique({
+    where: { name: data.name },
+  });
+
   if (existed) throw new ConflictError("Tên vai trò đã tồn tại");
 
   return prisma.role.create({
@@ -44,7 +31,7 @@ export const createRoleServices = async (data) => {
       name: data.name,
       description: data.description ?? null,
     },
-    select: { id: true, name: true, description: true, createdAt: true },
+    select: adminRoleSelect,
   });
 };
 
@@ -55,10 +42,10 @@ export const updateRoleServices = async (id, data) => {
   if (!role) throw new NotFoundError("Vai trò");
 
   if (data.name && data.name !== role.name) {
-    const duplicated = await prisma.role.findUnique({
+    const existed = await prisma.role.findUnique({
       where: { name: data.name },
     });
-    if (duplicated) throw new ConflictError("Tên vai trò đã tồn tại");
+    if (existed) throw new ConflictError("Tên vai trò đã tồn tại");
   }
 
   const updateData = {};
@@ -72,7 +59,7 @@ export const updateRoleServices = async (id, data) => {
   return prisma.role.update({
     where: { id },
     data: updateData,
-    select: { id: true, name: true, description: true, createdAt: true },
+    select: adminRoleSelect,
   });
 };
 
@@ -82,10 +69,13 @@ export const deleteRoleServices = async (id) => {
   const role = await prisma.role.findUnique({ where: { id } });
   if (!role) throw new NotFoundError("Vai trò");
 
-  const userCount = await prisma.user.count({ where: { roleId: id } });
+  const userCount = await prisma.user.count({
+    where: { roleId: id },
+  });
+
   if (userCount > 0) {
     throw new ConflictError(
-      `Không thể xóa — vai trò đang được dùng bởi ${userCount} người dùng`,
+      `Không thể xóa — vai trò đang được dùng bởi người dùng`,
     );
   }
 
