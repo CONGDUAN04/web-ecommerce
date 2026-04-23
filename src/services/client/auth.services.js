@@ -55,6 +55,10 @@ export const handleLogin = async (username, password, meta = {}) => {
 
   if (!user) throw new UnauthorizedError("Email hoặc mật khẩu không đúng");
 
+  if (!user.isActive) {
+    throw new UnauthorizedError("Tài khoản đã bị vô hiệu hóa");
+  }
+
   if (user.accountType !== ACCOUNT_TYPE.SYSTEM) {
     throw new UnauthorizedError(
       `Tài khoản này được liên kết qua ${user.accountType}, vui lòng đăng nhập bằng phương thức đó`,

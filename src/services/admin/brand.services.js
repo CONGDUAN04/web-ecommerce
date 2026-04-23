@@ -9,6 +9,7 @@ import {
 } from "../../services/common/base.services.js";
 import { cleanupOldFile } from "../common/file.helper.js";
 import { ROLE } from "../../constants/index.js";
+
 export const getBrandsServices = (query) => {
   return getAll(prisma.brand, query, {
     orderBy: { id: "desc" },

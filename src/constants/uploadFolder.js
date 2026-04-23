@@ -2,7 +2,7 @@ export const UPLOAD_TYPES = {
   brand: { folder: "brands", requiresAdmin: true },
   category: { folder: "categories", requiresAdmin: true },
   product: { folder: "products", requiresAdmin: true },
-  avatar: { folder: "avatars", requiresAdmin: false },
+  user: { folder: "avatars", requiresAdmin: false },
   banner: { folder: "banners", requiresAdmin: true },
   slider: { folder: "sliders", requiresAdmin: true },
   return: { folder: "returns", requiresAdmin: false },

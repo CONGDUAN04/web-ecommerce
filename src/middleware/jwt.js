@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { ROLE } from "../constants/index.js";
-const checkValidJWT = (req, res, next) => {
+import prisma from "../config/client.js";
+const checkValidJWT = async (req, res, next) => {
   const path = req.originalUrl.replace(/^\/api/, "");
 
   const whiteList = ["/login", "/register", "/logout", "/refresh-token"];
@@ -8,7 +9,6 @@ const checkValidJWT = (req, res, next) => {
   const isWhiteList = whiteList.some((route) => path.startsWith(route));
   if (isWhiteList) return next();
 
-  // Kiểm tra token trước try/catch
   const token = req.headers["authorization"]?.split(" ")[1];
 
   if (!token) {
@@ -28,13 +28,24 @@ const checkValidJWT = (req, res, next) => {
   try {
     const dataDecoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Chỉ lưu những field có trong payload
+    const user = await prisma.user.findUnique({
+      where: { id: dataDecoded.id },
+      include: { role: true },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        data: null,
+        message: "Tài khoản đã bị vô hiệu hóa hoặc không tồn tại",
+      });
+    }
+
     req.user = {
-      id: dataDecoded.id,
-      username: dataDecoded.username,
-      fullName: dataDecoded.fullName,
-      role: dataDecoded.role, // string: "Admin" | "User"
-      accountType: dataDecoded.accountType,
+      id: user.id,
+      username: user.username,
+      fullName: user.fullName,
+      role: user.role?.name,
+      accountType: user.accountType,
     };
 
     next();
@@ -59,9 +70,13 @@ export const isAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ message: "Bạn chưa đăng nhập!" });
   }
-  if (req.user.role !== ROLE.ADMIN) {
+
+  const allowedRoles = [ROLE.ADMIN, ROLE.SUPER_ADMIN];
+
+  if (!allowedRoles.includes(req.user.role)) {
     return res.status(403).json({ message: "Bạn không có quyền truy cập" });
   }
+
   next();
 };
 

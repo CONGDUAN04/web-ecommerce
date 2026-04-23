@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { idParam } from "./params.js";
 
-// ─── reusable fields ───────────────────────────────────────────────────────
-
 const usernameField = z
   .string({ required_error: "Username không được để trống" })
   .min(1, "Username không được để trống")
@@ -30,8 +28,9 @@ const roleIdField = z.coerce
   .number({ required_error: "RoleId không được để trống" })
   .int()
   .positive("RoleId phải là số nguyên dương");
+const urlField = z.string().url("Logo phải là URL hợp lệ").optional();
 
-// ─── create ────────────────────────────────────────────────────────────────
+const publicIdField = z.string().optional();
 
 export const createUserSchema = z.object({
   body: z.object({
@@ -39,10 +38,10 @@ export const createUserSchema = z.object({
     fullName: fullNameField,
     phone: phoneField,
     roleId: roleIdField,
+    avatar: urlField,
+    avatarId: publicIdField,
   }),
 });
-
-// ─── update ────────────────────────────────────────────────────────────────
 
 export const updateUserSchema = z.object({
   params: idParam,
@@ -50,5 +49,14 @@ export const updateUserSchema = z.object({
     fullName: fullNameField.optional(),
     phone: phoneField,
     roleId: roleIdField.optional().nullable(),
+    avatar: urlField.optional(),
+    avatarId: publicIdField.optional(),
+  }),
+});
+
+export const updateUserStatusSchema = z.object({
+  params: idParam,
+  body: z.object({
+    isActive: z.boolean(),
   }),
 });
