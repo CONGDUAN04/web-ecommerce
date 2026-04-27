@@ -18,7 +18,11 @@ export const registerSchema = z.object({
       password: z
         .string()
         .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
-        .max(100, "Mật khẩu tối đa 100 ký tự"),
+        .max(100, "Mật khẩu tối đa 100 ký tự")
+        .regex(
+          /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/,
+          "Mật khẩu phải có ít nhất 1 chữ cái và 1 chữ số",
+        ),
 
       confirmPassword: z
         .string()
@@ -71,5 +75,55 @@ export const updateProfileSchema = z.object({
       .string()
       .regex(/^(0|\+84)[0-9]{9,10}$/, "Số điện thoại không hợp lệ")
       .optional(),
+  }),
+});
+
+export const verifyOtpSchema = z.object({
+  body: z.object({
+    username: z
+      .string()
+      .min(1, "Email không được để trống")
+      .email("Email không hợp lệ")
+      .trim(),
+
+    otp: z
+      .string()
+      .length(6, "OTP phải gồm đúng 6 chữ số")
+      .regex(/^\d{6}$/, "OTP chỉ được chứa chữ số"),
+  }),
+});
+
+export const resendOtpSchema = z.object({
+  body: z.object({
+    username: z
+      .string()
+      .min(1, "Email không được để trống")
+      .email("Email không hợp lệ")
+      .trim(),
+  }),
+});
+
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    username: z.string().email().min(1),
+  }),
+});
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    username: z
+      .string()
+      .min(1, "Email không được để trống")
+      .email("Email không hợp lệ")
+      .trim(),
+
+    newPassword: z
+      .string()
+      .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
+      .max(100, "Mật khẩu tối đa 100 ký tự")
+      .regex(
+        /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/,
+        "Mật khẩu phải có ít nhất 1 chữ cái và 1 chữ số",
+      ),
   }),
 });

@@ -17,34 +17,43 @@ model Role {
 }
 
 model User {
-  id                  Int             @id @default(autoincrement())
-  username            String          @unique
-  password            String?
-  fullName            String?
-  phone               String?
-  avatar              String?
-  avatarId            String?
-  accountType         AccountType     @default(SYSTEM)
-  roleId              Int?
-  lastLoginAt         DateTime?
-  resetPasswordToken  String?
-  resetPasswordExpire DateTime?
-  passwordChangedAt   DateTime?
-  createdAt           DateTime        @default(now())
-  isActive            Boolean         @default(true)
-  updatedAt           DateTime        @updatedAt
-  deletedAt           DateTime?
-  addresses           Address[]
-  cart                Cart?
-  notifications       Notification[]
-  orders              Order[]
-  returnRequests      ReturnRequest[]
-  reviews             Review[]
-  reviewReplies       ReviewReply[]
-  sessions            Session[]
-  role                Role?           @relation(fields: [roleId], references: [id])
-  voucherUsages       VoucherUsage[]
-  wishlists           Wishlist[]
+  id          Int         @id @default(autoincrement())
+  username    String      @unique
+  password    String?
+  fullName    String?
+  phone       String?
+  avatar      String?
+  avatarId    String?
+  accountType AccountType @default(SYSTEM)
+  roleId      Int?
+
+  lastLoginAt       DateTime?
+  passwordChangedAt DateTime?
+
+  isVerified Boolean @default(false)
+
+  otp        String?
+  otpExpire  DateTime?
+  otpType    OtpType?
+  otpSentAt  DateTime?
+  otpAttempt Int       @default(0)
+
+  createdAt DateTime  @default(now())
+  isActive  Boolean   @default(true)
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  addresses      Address[]
+  cart           Cart?
+  notifications  Notification[]
+  orders         Order[]
+  returnRequests ReturnRequest[]
+  reviews        Review[]
+  reviewReplies  ReviewReply[]
+  sessions       Session[]
+  role           Role?           @relation(fields: [roleId], references: [id])
+  voucherUsages  VoucherUsage[]
+  wishlists      Wishlist[]
 
   @@index([roleId])
   @@index([phone])
@@ -622,4 +631,9 @@ enum ReturnReason {
   NOT_AS_DESCRIBED
   CHANGED_MIND
   OTHER
+}
+
+enum OtpType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
 }

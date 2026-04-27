@@ -5,16 +5,42 @@ import {
   handleLogin,
   handleRefreshToken,
   handleLogout,
+  resendOtpService,
+  verifyOtpService,
+  forgotPasswordService,
+  resetPasswordService,
 } from "../../services/client/auth.services.js";
 import {
   getActiveSessions,
   revokeAllUserSessions,
 } from "../../services/admin/session.js";
 import { COOKIE_OPTIONS } from "../../constants/index.js";
+import { sendEmail } from "../../utils/mailer.js";
+import { UnauthorizedError, NotFoundError } from "../../utils/AppError.js";
 
 export const register = asyncHandler(async (req, res) => {
   const user = await registerNewUser(req.body);
   return ApiResponse.created(res, user);
+});
+
+export const resendOtp = asyncHandler(async (req, res) => {
+  const { username } = req.body;
+
+  await resendOtpService(username);
+
+  return ApiResponse.success(res, null, {
+    message: "Mã OTP đã được gửi lại",
+  });
+});
+
+export const verifyOtp = asyncHandler(async (req, res) => {
+  const { username, otp } = req.body;
+
+  await verifyOtpService(username, otp);
+
+  return ApiResponse.success(res, null, {
+    message: "Xác thực OTP thành công ",
+  });
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -62,4 +88,24 @@ export const logoutAll = asyncHandler(async (req, res) => {
   await revokeAllUserSessions(req.user.id);
   res.clearCookie("refresh_token", COOKIE_OPTIONS);
   return ApiResponse.deleted(res, "Đăng xuất tất cả thiết bị thành công");
+});
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { username } = req.body;
+
+  await forgotPasswordService(username);
+
+  return ApiResponse.success(res, null, {
+    message: "OTP đặt lại mật khẩu đã được gửi",
+  });
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { username, newPassword } = req.body;
+
+  await resetPasswordService(username, newPassword);
+
+  return ApiResponse.success(res, null, {
+    message: "Đổi mật khẩu thành công 🎉",
+  });
 });

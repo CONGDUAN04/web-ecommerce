@@ -14,7 +14,10 @@ export const uploadAuth = (req, res, next) => {
     return res.status(400).json({ message: "Loại upload không hợp lệ" });
   }
 
-  if (config.requiresAdmin && req.user.role !== ROLE.ADMIN) {
+  if (
+    config.requiresAdmin &&
+    ![ROLE.ADMIN, ROLE.SUPER_ADMIN].includes(req.user.role)
+  ) {
     return res.status(403).json({
       message: "Bạn không có quyền upload loại này",
     });

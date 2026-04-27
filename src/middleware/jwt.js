@@ -4,7 +4,16 @@ import prisma from "../config/client.js";
 const checkValidJWT = async (req, res, next) => {
   const path = req.originalUrl.replace(/^\/api/, "");
 
-  const whiteList = ["/login", "/register", "/logout", "/refresh-token"];
+  const whiteList = [
+    "/login",
+    "/register",
+    "/logout",
+    "/refresh-token",
+    "/verify-otp", // ← thêm
+    "/resend-otp", // ← thêm
+    "/forgot-password", // ← thêm nếu chưa có
+    "/reset-password", // ← thêm nếu chưa có
+  ];
 
   const isWhiteList = whiteList.some((route) => path.startsWith(route));
   if (isWhiteList) return next();
