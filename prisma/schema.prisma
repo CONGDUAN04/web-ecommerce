@@ -59,6 +59,7 @@ model User {
   @@index([phone])
   @@index([accountType])
   @@index([createdAt])
+  @@index([deletedAt])
 }
 
 model Session {

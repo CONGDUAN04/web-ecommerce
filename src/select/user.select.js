@@ -4,9 +4,19 @@ export const adminUserSelect = {
   fullName: true,
   phone: true,
   avatar: true,
+  avatarId: true,
   accountType: true,
   isActive: true,
+  isVerified: true,
+  lastLoginAt: true,
+  passwordChangedAt: true,
   createdAt: true,
   updatedAt: true,
-  role: { select: { id: true, name: true } },
+  deletedAt: true,
+  role: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
 };

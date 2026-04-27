@@ -94,7 +94,6 @@ export const registerNewUser = async (data) => {
     message: "Đăng ký thành công, vui lòng kiểm tra email để xác thực",
   };
 };
-
 export const handleLogin = async (username, password, meta = {}) => {
   const user = await prisma.user.findUnique({
     where: { username },
@@ -119,11 +118,21 @@ export const handleLogin = async (username, password, meta = {}) => {
     );
   }
 
-  if (!user.password)
+  if (!user.password) {
     throw new UnauthorizedError("Email hoặc mật khẩu không đúng");
+  }
 
   const isMatch = await comparePassword(password, user.password);
-  if (!isMatch) throw new UnauthorizedError("Email hoặc mật khẩu không đúng");
+  if (!isMatch) {
+    throw new UnauthorizedError("Email hoặc mật khẩu không đúng");
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      lastLoginAt: new Date(),
+    },
+  });
 
   const payload = {
     id: user.id,
@@ -143,9 +152,11 @@ export const handleLogin = async (username, password, meta = {}) => {
     ipAddress: meta.ipAddress,
   });
 
-  return { access_token, refresh_token: session.refreshToken };
+  return {
+    access_token,
+    refresh_token: session.refreshToken,
+  };
 };
-
 export const handleRefreshToken = async (token) => {
   if (!token) throw new UnauthorizedError("Không tìm thấy refresh token");
 
