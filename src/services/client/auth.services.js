@@ -45,6 +45,12 @@ export const registerNewUser = async (data) => {
     throw new ConflictError("Email đã được sử dụng");
   }
 
+  if (existed && !existed.isVerified) {
+    await prisma.user.delete({
+      where: { id: existed.id },
+    });
+  }
+
   const otp = generateOtp();
   const hashedPassword = await hashPassword(password);
 
@@ -55,23 +61,6 @@ export const registerNewUser = async (data) => {
     otpSentAt: new Date(),
     otpAttempt: 0,
   };
-
-  if (existed && !existed.isVerified) {
-    await prisma.user.update({
-      where: { id: existed.id },
-      data: {
-        fullName,
-        password: hashedPassword,
-        ...otpData,
-      },
-    });
-
-    await sendVerifyOtpEmail(username, otp);
-
-    return {
-      message: "Email đã tồn tại nhưng chưa xác thực, OTP đã được gửi lại",
-    };
-  }
 
   await prisma.user.create({
     data: {

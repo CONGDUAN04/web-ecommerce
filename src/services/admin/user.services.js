@@ -58,6 +58,9 @@ export const createUserServices = async (data, currentUser) => {
       avatarId: data.avatarId || null,
       accountType: "SYSTEM",
       roleId: Number(data.roleId),
+
+      isVerified: true,
+      isActive: true,
     },
     select: adminUserSelect,
   });

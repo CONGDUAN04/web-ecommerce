@@ -9,7 +9,7 @@ import uploadRoutes from "./routes/upload/api.upload.js";
 import { checkValidJWT, isAdmin } from "./middleware/jwt.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import dotenv from "dotenv";
-
+import "./jobs/cleanupUser.js";
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 8081;
