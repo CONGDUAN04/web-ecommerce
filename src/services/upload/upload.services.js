@@ -47,7 +47,7 @@ export const deleteFileService = async (publicId, user) => {
     throw new ValidationError("Thiếu publicId");
   }
 
-  if (user.role === ROLE.ADMIN) {
+  if (user.role === ROLE.ADMIN || user.role === ROLE.SUPER_ADMIN) {
     const result = await cloudinary.uploader.destroy(publicId);
     if (result.result !== "ok") {
       throw new ValidationError("Xoá file thất bại");

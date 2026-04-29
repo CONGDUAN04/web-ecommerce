@@ -1,41 +1,48 @@
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { ApiResponse } from "../../utils/response.js";
 import {
+  handleGetAll,
+  handleGetById,
+  handleCreate,
+  handleUpdate,
+  handleDelete,
+} from "../common/base.controller.js";
+
+import {
   getProductGroupsServices,
   getProductGroupByIdServices,
   createProductGroupServices,
   updateProductGroupServices,
   deleteProductGroupServices,
+  updateProductGroupStatusService,
 } from "../../services/admin/productGroup.services.js";
 
-export const getProductGroups = asyncHandler(async (req, res) => {
-  const result = await getProductGroupsServices(req.validated.query);
-  return ApiResponse.success(res, result.items, { meta: result.pagination });
-});
+export const getProductGroups = asyncHandler(
+  handleGetAll(getProductGroupsServices),
+);
 
-export const getProductGroupById = asyncHandler(async (req, res) => {
-  const data = await getProductGroupByIdServices(req.validated.params.id);
-  return ApiResponse.success(res, data);
-});
+export const getProductGroupById = asyncHandler(
+  handleGetById(getProductGroupByIdServices),
+);
 
-export const createProductGroup = asyncHandler(async (req, res) => {
-  const data = await createProductGroupServices(
-    req.validated.body,
-    req.file?.filename,
-  );
-  return ApiResponse.created(res, data);
-});
+export const createProductGroup = asyncHandler(
+  handleCreate(createProductGroupServices),
+);
 
-export const updateProductGroup = asyncHandler(async (req, res) => {
-  const data = await updateProductGroupServices(
+export const updateProductGroup = asyncHandler(
+  handleUpdate(updateProductGroupServices),
+);
+
+export const deleteProductGroup = asyncHandler(
+  handleDelete(deleteProductGroupServices),
+);
+
+export const updateProductGroupStatus = asyncHandler(async (req, res) => {
+  const data = await updateProductGroupStatusService(
     req.validated.params.id,
     req.validated.body,
-    req.file?.filename,
+    req.user,
   );
-  return ApiResponse.updated(res, data);
-});
 
-export const deleteProductGroup = asyncHandler(async (req, res) => {
-  await deleteProductGroupServices(req.validated.params.id);
-  return ApiResponse.deleted(res);
+  return ApiResponse.updated(res, data);
 });

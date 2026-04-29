@@ -18,6 +18,7 @@ export const createProductGroupSchema = z.object({
 
     description: z.string().trim().optional(),
     thumbnail: z.string().trim().optional(),
+    thumbnailId: z.string().trim().optional(),
   }),
 
   params: z.object({}).optional(),
@@ -39,8 +40,9 @@ export const updateProductGroupSchema = z.object({
       series: z.string().trim().max(100).optional(),
       brandId: positiveInt.optional(),
       categoryId: positiveInt.optional(),
-      description: z.string().trim().optional(),
+      description: z.string().trim().nullish(),
       thumbnail: z.string().trim().optional(),
+      thumbnailId: z.string().trim().optional(),
       isActive: zBoolean.optional(),
     })
     .optional(),
@@ -57,4 +59,11 @@ export const getProductGroupsQuerySchema = paginationSchema.extend({
 
   params: z.object({}).optional(),
   body: z.object({}).optional(),
+});
+
+export const updateProductGroupStatusSchema = z.object({
+  params: idParam,
+  body: z.object({
+    isActive: z.boolean(),
+  }),
 });

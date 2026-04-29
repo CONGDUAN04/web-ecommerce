@@ -6,6 +6,7 @@ import {
   createProductGroup,
   updateProductGroup,
   deleteProductGroup,
+  updateProductGroupStatus,
 } from "../../controllers/admin/productGroup.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
@@ -14,34 +15,24 @@ import {
   createProductGroupSchema,
   updateProductGroupSchema,
   getProductGroupsQuerySchema,
+  updateProductGroupStatusSchema,
 } from "../../validations/admin/productGroup.schema.js";
-import { uploadSingleFile } from "../../middleware/multer.js";
 
 const router = Router();
 
-// GET /admin/product-groups?page=1&limit=10&series=iPhone 17&brandId=1
 router.get("/", validate(getProductGroupsQuerySchema), getProductGroups);
 
-// GET /admin/product-groups/:id
 router.get("/:id", validate(idParamSchema), getProductGroupById);
 
-// POST /admin/product-groups
-router.post(
-  "/",
-  uploadSingleFile("thumbnail", "images/product-group"),
-  validate(createProductGroupSchema),
-  createProductGroup,
-);
+router.post("/", validate(createProductGroupSchema), createProductGroup);
 
-// PUT /admin/product-groups/:id
-router.put(
-  "/:id",
-  uploadSingleFile("thumbnail", "images/product-group"),
-  validate(updateProductGroupSchema),
-  updateProductGroup,
-);
+router.put("/:id", validate(updateProductGroupSchema), updateProductGroup);
 
-// DELETE /admin/product-groups/:id
 router.delete("/:id", validate(idParamSchema), deleteProductGroup);
 
+router.patch(
+  "/:id/status",
+  validate(updateProductGroupStatusSchema),
+  updateProductGroupStatus,
+);
 export default router;

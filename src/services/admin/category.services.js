@@ -2,7 +2,11 @@ import prisma from "../../config/client.js";
 import { generateSlug } from "../../utils/slug.js";
 import { NotFoundError, ConflictError } from "../../utils/AppError.js";
 import { adminCategorySelect } from "../../select/category.select.js";
-import { getAll, getById } from "../../services/common/base.services.js";
+import {
+  getAll,
+  getById,
+  deleteWithFile,
+} from "../../services/common/base.services.js";
 import { cleanupOldFile } from "../common/file.helper.js";
 import { ROLE } from "../../constants/index.js";
 export const getCategoriesServices = (query) => {
