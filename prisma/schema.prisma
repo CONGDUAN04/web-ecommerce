@@ -148,7 +148,7 @@ model Product {
   id             Int                    @id @default(autoincrement())
   name           String
   slug           String                 @unique
-  storage        Int?
+  storage        String?
   description    String?                @db.Text
   thumbnail      String?
   thumbnailId    String?
@@ -183,29 +183,39 @@ model Product {
 }
 
 model Variant {
-  id             Int             @id @default(autoincrement())
-  sku            String          @unique
-  color          String
-  price          Int
-  comparePrice   Int?
-  quantity       Int             @default(0)
-  sold           Int             @default(0)
-  isActive       Boolean         @default(true)
-  productId      Int
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  cartItems      CartItem[]
-  flashSaleItems FlashSaleItem[]
-  inventoryLogs  InventoryLog[]
-  orderItems     OrderItem[]
+  id  Int    @id @default(autoincrement())
+  sku String @unique
+
+  colorId Int
+  color   Color @relation(fields: [colorId], references: [id])
+
+  price        Int
+  comparePrice Int?
+  quantity     Int      @default(0)
+  sold         Int      @default(0)
+  isActive     Boolean  @default(true)
+  productId    Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  inventoryLogs  InventoryLog[]
+  flashSaleItems FlashSaleItem[]
 
   @@index([productId])
-  @@index([price])
-  @@index([isActive])
-  @@index([productId, isActive])
-  @@index([productId, color])
-  @@index([productId, price])
+  @@index([colorId])
+  @@index([productId, colorId])
+}
+
+model Color {
+  id       Int       @id @default(autoincrement())
+  name     String
+  code     String
+  variants Variant[]
+
+  @@unique([name])
 }
 
 model ProductImage {

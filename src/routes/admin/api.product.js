@@ -7,6 +7,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  updateProductStatus,
 } from "../../controllers/admin/product.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
@@ -15,37 +16,28 @@ import {
   createProductSchema,
   updateProductSchema,
   getProductsQuerySchema,
+  updateProductStatusSchema,
 } from "../../validations/admin/product.schema.js";
+
 import { uploadSingleFile } from "../../middleware/multer.js";
 
 const router = Router();
 
-// GET /admin/products?page=1&limit=10&groupId=1&brandId=1&categoryId=1&search=iphone
 router.get("/", validate(getProductsQuerySchema), getProducts);
 
-// GET /admin/products/slug/:slug  — dùng cho client (trang chi tiết)
 router.get("/slug/:slug", getProductBySlug);
 
-// GET /admin/products/:id
 router.get("/:id", validate(idParamSchema), getProductById);
 
-// POST /admin/products
-router.post(
-  "/",
-  uploadSingleFile("thumbnail", "images/product"),
-  validate(createProductSchema),
-  createProduct,
-);
+router.post("/", validate(createProductSchema), createProduct);
 
-// PUT /admin/products/:id
-router.put(
-  "/:id",
-  uploadSingleFile("thumbnail", "images/product"),
-  validate(updateProductSchema),
-  updateProduct,
-);
+router.put("/:id", validate(updateProductSchema), updateProduct);
 
-// DELETE /admin/products/:id
 router.delete("/:id", validate(idParamSchema), deleteProduct);
 
+router.patch(
+  "/:id/status",
+  validate(updateProductStatusSchema),
+  updateProductStatus,
+);
 export default router;

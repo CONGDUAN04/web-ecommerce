@@ -12,10 +12,11 @@ export const createProductSchema = z.object({
       .max(200, "Tên tối đa 200 ký tự"),
 
     groupId: positiveInt,
-    storage: positiveInt, // ← thêm
+    storage: z.string().trim().max(100, "Storage tối đa 100 ký tự").optional(),
 
     description: z.string().trim().optional(),
     thumbnail: z.string().trim().optional(),
+    thumbnailId: z.string().trim().optional(),
   }),
 
   params: z.object({}).optional(),
@@ -29,9 +30,14 @@ export const updateProductSchema = z.object({
     .object({
       name: z.string().trim().min(3).max(200).optional(),
       groupId: positiveInt.optional(),
-      storage: positiveInt.optional(), // ← thêm
-      description: z.string().trim().optional(),
+      storage: z
+        .string()
+        .trim()
+        .max(100, "Storage tối đa 100 ký tự")
+        .optional(),
+      description: z.string().trim().nullish(),
       thumbnail: z.string().trim().optional(),
+      thumbnailId: z.string().trim().optional(),
       isActive: zBoolean.optional(),
     })
     .optional(),
@@ -41,14 +47,19 @@ export const updateProductSchema = z.object({
 
 export const getProductsQuerySchema = paginationSchema.extend({
   query: paginationSchema.shape.query.extend({
-    page: z.string().optional(),
-    limit: z.string().optional(),
-    groupId: z.string().optional(), // ?groupId=1   → lấy product trong group
-    brandId: z.string().optional(), // ?brandId=1
-    categoryId: z.string().optional(), // ?categoryId=1
-    search: z.string().trim().optional(), // ?search=iphone
+    groupId: z.coerce.number().int().positive().optional(),
+    brandId: z.coerce.number().int().positive().optional(),
+    categoryId: z.coerce.number().int().positive().optional(),
+    search: z.string().trim().optional(),
   }),
 
   params: z.object({}).optional(),
   body: z.object({}).optional(),
+});
+
+export const updateProductStatusSchema = z.object({
+  params: idParam,
+  body: z.object({
+    isActive: z.boolean(),
+  }),
 });

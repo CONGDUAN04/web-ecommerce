@@ -1,92 +1,52 @@
 import prisma from "../../config/client.js";
-import { parsePagination } from "../../utils/pagination.js";
 import { generateSlug } from "../../utils/slug.js";
 import {
   NotFoundError,
   ConflictError,
   ValidationError,
 } from "../../utils/AppError.js";
-import { adminProductInclude } from "../../select/product.select.js";
+import { getAll, getById, deleteWithFile } from "../common/base.services.js";
+import { adminProductSelect } from "../../select/product.select.js";
+import { cleanupOldFile } from "../common/file.helper.js";
+import { ROLE } from "../../constants/index.js";
 
-export const getProductsServices = async ({
-  page = 1,
-  limit = 10,
-  groupId,
-  brandId,
-  categoryId,
-  search,
-}) => {
-  const { page: p, limit: l, skip } = parsePagination({ page, limit });
+export const getProductsServices = (query) => {
+  const { groupId, brandId, categoryId, search, isActive } = query;
 
-  const where = { isActive: true };
-  if (groupId) where.groupId = Number(groupId);
-  if (brandId) where.brandId = Number(brandId);
-  if (categoryId) where.categoryId = Number(categoryId);
-  if (search) where.name = { contains: search };
-
-  const [items, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      skip,
-      take: l,
-      orderBy: { createdAt: "desc" },
-      include: {
-        ...adminProductInclude,
-        variants: {
-          where: { isActive: true },
-          select: {
-            id: true,
-            color: true,
-            price: true,
-            comparePrice: true,
-            quantity: true,
-          },
-          orderBy: { price: "asc" },
-        },
-        _count: { select: { variants: true, reviews: true } },
-      },
+  const where = {
+    ...(isActive !== undefined && {
+      isActive: isActive === "true",
     }),
-    prisma.product.count({ where }),
-  ]);
-
-  return {
-    items,
-    pagination: { page: p, limit: l, total, totalPages: Math.ceil(total / l) },
+    ...(groupId && { groupId: Number(groupId) }),
+    ...(brandId && { brandId: Number(brandId) }),
+    ...(categoryId && { categoryId: Number(categoryId) }),
+    ...(search && {
+      name: { contains: search },
+    }),
   };
+
+  return getAll(prisma.product, query, {
+    where,
+    orderBy: { id: "desc" },
+    select: adminProductSelect,
+  });
 };
 
-export const getProductByIdServices = async (id) => {
-  const product = await prisma.product.findUnique({
-    where: { id: Number(id) },
-    include: {
-      ...adminProductInclude,
-      variants: {
-        where: { isActive: true },
-        orderBy: [{ price: "asc" }, { color: "asc" }],
-      },
-      images: { orderBy: { sortOrder: "asc" } },
-      specifications: true,
-      _count: { select: { reviews: true } },
+export const getProductByIdServices = (id) => {
+  return getById(
+    prisma.product,
+    id,
+    {
+      select: adminProductSelect,
     },
-  });
-
-  if (!product) throw new NotFoundError("Sản phẩm");
-  return product;
+    "product",
+  );
 };
 
 export const getProductBySlugServices = async (slug) => {
   const product = await prisma.product.findUnique({
     where: { slug },
-    include: {
-      ...adminProductInclude,
-      variants: {
-        where: { isActive: true },
-        orderBy: [{ color: "asc" }],
-      },
-      images: { orderBy: { sortOrder: "asc" } },
-      specifications: true,
-      _count: { select: { reviews: true } },
-    },
+    select: adminProductSelect,
   });
 
   if (!product) throw new NotFoundError("Sản phẩm");
@@ -99,15 +59,23 @@ export const getProductBySlugServices = async (slug) => {
   return product;
 };
 
-export const createProductServices = async (data, thumbnail) => {
+export const createProductServices = async (data) => {
+  if (!data.name || !data.groupId) {
+    throw new ValidationError("Thiếu dữ liệu bắt buộc");
+  }
+
   const slug = generateSlug(data.name);
 
-  const exist = await prisma.product.findUnique({ where: { slug } });
+  const exist = await prisma.product.findFirst({
+    where: { slug },
+  });
+
   if (exist) throw new ConflictError("Tên sản phẩm đã tồn tại");
 
   const group = await prisma.productGroup.findUnique({
     where: { id: Number(data.groupId) },
   });
+
   if (!group) throw new NotFoundError("Product group");
   if (!group.isActive) throw new ValidationError("Product group đã bị ẩn");
 
@@ -115,72 +83,111 @@ export const createProductServices = async (data, thumbnail) => {
     data: {
       name: data.name,
       slug,
-      storage: data.storage,
+      storage: data.storage?.trim() || null,
       groupId: group.id,
       brandId: group.brandId,
       categoryId: group.categoryId,
       description: data.description ?? null,
-      thumbnail: thumbnail ?? null,
+      thumbnail: data.thumbnail ?? null,
+      thumbnailId: data.thumbnailId ?? null,
     },
-    include: productInclude,
+    select: adminProductSelect,
   });
 };
 
-export const updateProductServices = async (id, data, thumbnail) => {
+export const updateProductServices = async (id, data) => {
   id = Number(id);
 
   const exist = await prisma.product.findUnique({ where: { id } });
-  if (!exist) throw new NotFoundError("Sản phẩm");
+  if (!exist) throw new NotFoundError("Product");
 
-  const updateData = {};
-
-  if (data.name) {
-    const slug = generateSlug(data.name);
+  if (data.name && data.name !== exist.name) {
     const duplicated = await prisma.product.findFirst({
-      where: { slug, NOT: { id } },
+      where: {
+        slug: generateSlug(data.name),
+        NOT: { id },
+      },
     });
-    if (duplicated) throw new ConflictError("Tên sản phẩm đã tồn tại");
-    updateData.name = data.name;
-    updateData.slug = slug;
+
+    if (duplicated) {
+      throw new ConflictError("Tên sản phẩm đã tồn tại");
+    }
   }
 
-  if (data.groupId !== undefined) {
+  if (data.groupId) {
     const group = await prisma.productGroup.findUnique({
       where: { id: Number(data.groupId) },
     });
+
     if (!group) throw new NotFoundError("Product group");
     if (!group.isActive) throw new ValidationError("Product group đã bị ẩn");
-
-    updateData.groupId = group.id;
-    updateData.brandId = group.brandId;
-    updateData.categoryId = group.categoryId;
   }
 
-  if (data.storage !== undefined) updateData.storage = data.storage;
-  if (data.description !== undefined) updateData.description = data.description;
-  if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
-
-  if (Object.keys(updateData).length === 0 && !thumbnail) {
-    throw new ValidationError("Cần ít nhất một trường để cập nhật");
-  }
-
-  return prisma.product.update({
+  const updated = await prisma.product.update({
     where: { id },
-    data: { ...updateData, thumbnail: thumbnail ?? updateData.thumbnail },
-    include: productInclude,
+    data: {
+      name: data.name ?? exist.name,
+      slug: data.name ? generateSlug(data.name) : exist.slug,
+      storage:
+        data.storage !== undefined
+          ? data.storage?.trim() || null
+          : exist.storage,
+      description:
+        data.description !== null && data.description !== undefined
+          ? data.description
+          : exist.description,
+      groupId: data.groupId ? Number(data.groupId) : exist.groupId,
+      brandId: data.groupId ? undefined : exist.brandId,
+      categoryId: data.groupId ? undefined : exist.categoryId,
+      thumbnail: data.thumbnail ?? exist.thumbnail,
+      thumbnailId: data.thumbnailId ?? exist.thumbnailId,
+      isActive:
+        data.isActive !== undefined ? Boolean(data.isActive) : exist.isActive,
+    },
+    select: adminProductSelect,
   });
+
+  cleanupOldFile(
+    exist.thumbnailId,
+    data.thumbnailId,
+    { role: ROLE.ADMIN },
+    "thumbnail",
+  );
+
+  return updated;
 };
 
 export const deleteProductServices = async (id) => {
   id = Number(id);
 
-  const exist = await prisma.product.findUnique({ where: { id } });
-  if (!exist) throw new NotFoundError("Sản phẩm");
-
-  await prisma.product.update({
+  const exist = await prisma.product.findUnique({
     where: { id },
-    data: { isActive: false },
   });
 
-  return true;
+  if (!exist) throw new NotFoundError("Product");
+
+  return deleteWithFile(
+    prisma.product,
+    id,
+    "thumbnailId",
+    { role: ROLE.ADMIN },
+    "Sản phẩm",
+  );
+};
+
+export const updateProductStatusService = async (id, data) => {
+  id = Number(id);
+
+  const product = await prisma.product.findUnique({
+    where: { id },
+  });
+
+  if (!product) throw new NotFoundError("Product");
+
+  return prisma.product.update({
+    where: { id },
+    data: {
+      isActive: data.isActive,
+    },
+  });
 };

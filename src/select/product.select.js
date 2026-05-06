@@ -33,9 +33,53 @@ export const clientProductSelect = {
     },
   },
 };
+
 //ADMIN
-export const adminProductInclude = {
-  brand: { select: { id: true, name: true, slug: true, logo: true } },
-  category: { select: { id: true, name: true, slug: true } },
-  group: { select: { id: true, name: true, slug: true, series: true } },
+export const adminProductSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  storage: true,
+  description: true,
+
+  thumbnail: true,
+  thumbnailId: true,
+
+  isActive: true,
+  viewCount: true,
+
+  createdAt: true,
+  updatedAt: true,
+
+  brand: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      logo: true,
+    },
+  },
+
+  category: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  },
+
+  group: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      series: true,
+    },
+  },
+
+  _count: {
+    select: {
+      variants: true,
+    },
+  },
 };

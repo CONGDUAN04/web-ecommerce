@@ -22,12 +22,13 @@ CREATE TABLE `User` (
     `accountType` ENUM('SYSTEM', 'GOOGLE', 'GITHUB') NOT NULL DEFAULT 'SYSTEM',
     `roleId` INTEGER NULL,
     `lastLoginAt` DATETIME(3) NULL,
-    `resetPasswordToken` VARCHAR(191) NULL,
-    `resetPasswordExpire` DATETIME(3) NULL,
     `passwordChangedAt` DATETIME(3) NULL,
     `isVerified` BOOLEAN NOT NULL DEFAULT false,
-    `verifyToken` VARCHAR(191) NULL,
-    `verifyTokenExpire` DATETIME(3) NULL,
+    `otp` VARCHAR(191) NULL,
+    `otpExpire` DATETIME(3) NULL,
+    `otpType` ENUM('VERIFY_EMAIL', 'RESET_PASSWORD') NULL,
+    `otpSentAt` DATETIME(3) NULL,
+    `otpAttempt` INTEGER NOT NULL DEFAULT 0,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `isActive` BOOLEAN NOT NULL DEFAULT true,
     `updatedAt` DATETIME(3) NOT NULL,
@@ -38,6 +39,7 @@ CREATE TABLE `User` (
     INDEX `User_phone_idx`(`phone`),
     INDEX `User_accountType_idx`(`accountType`),
     INDEX `User_createdAt_idx`(`createdAt`),
+    INDEX `User_deletedAt_idx`(`deletedAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -137,7 +139,7 @@ CREATE TABLE `Product` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(191) NOT NULL,
     `slug` VARCHAR(191) NOT NULL,
-    `storage` INTEGER NULL,
+    `storage` VARCHAR(191) NULL,
     `description` TEXT NULL,
     `thumbnail` VARCHAR(191) NULL,
     `thumbnailId` VARCHAR(191) NULL,
@@ -169,7 +171,7 @@ CREATE TABLE `Product` (
 CREATE TABLE `Variant` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `sku` VARCHAR(191) NOT NULL,
-    `color` VARCHAR(191) NOT NULL,
+    `colorId` INTEGER NOT NULL,
     `price` INTEGER NOT NULL,
     `comparePrice` INTEGER NULL,
     `quantity` INTEGER NOT NULL DEFAULT 0,
@@ -181,11 +183,18 @@ CREATE TABLE `Variant` (
 
     UNIQUE INDEX `Variant_sku_key`(`sku`),
     INDEX `Variant_productId_idx`(`productId`),
-    INDEX `Variant_price_idx`(`price`),
-    INDEX `Variant_isActive_idx`(`isActive`),
-    INDEX `Variant_productId_isActive_idx`(`productId`, `isActive`),
-    INDEX `Variant_productId_color_idx`(`productId`, `color`),
-    INDEX `Variant_productId_price_idx`(`productId`, `price`),
+    INDEX `Variant_colorId_idx`(`colorId`),
+    INDEX `Variant_productId_colorId_idx`(`productId`, `colorId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Color` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(191) NOT NULL,
+    `code` VARCHAR(191) NOT NULL,
+
+    UNIQUE INDEX `Color_name_key`(`name`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -587,6 +596,9 @@ ALTER TABLE `Product` ADD CONSTRAINT `Product_categoryId_fkey` FOREIGN KEY (`cat
 
 -- AddForeignKey
 ALTER TABLE `Product` ADD CONSTRAINT `Product_groupId_fkey` FOREIGN KEY (`groupId`) REFERENCES `ProductGroup`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Variant` ADD CONSTRAINT `Variant_colorId_fkey` FOREIGN KEY (`colorId`) REFERENCES `Color`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Variant` ADD CONSTRAINT `Variant_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
