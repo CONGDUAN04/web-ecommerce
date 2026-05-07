@@ -83,7 +83,6 @@ export const createProductServices = async (data) => {
     data: {
       name: data.name,
       slug,
-      storage: data.storage?.trim() || null,
       groupId: group.id,
       brandId: group.brandId,
       categoryId: group.categoryId,
@@ -128,10 +127,6 @@ export const updateProductServices = async (id, data) => {
     data: {
       name: data.name ?? exist.name,
       slug: data.name ? generateSlug(data.name) : exist.slug,
-      storage:
-        data.storage !== undefined
-          ? data.storage?.trim() || null
-          : exist.storage,
       description:
         data.description !== null && data.description !== undefined
           ? data.description

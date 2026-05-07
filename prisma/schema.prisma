@@ -148,7 +148,6 @@ model Product {
   id             Int                    @id @default(autoincrement())
   name           String
   slug           String                 @unique
-  storage        String?
   description    String?                @db.Text
   thumbnail      String?
   thumbnailId    String?
@@ -173,21 +172,19 @@ model Product {
   @@index([brandId])
   @@index([categoryId])
   @@index([isActive])
-  @@index([storage])
   @@index([viewCount])
   @@index([createdAt])
   @@index([isActive, categoryId])
   @@index([isActive, brandId])
   @@index([isActive, groupId])
-  @@index([groupId, storage])
 }
 
 model Variant {
-  id  Int    @id @default(autoincrement())
-  sku String @unique
-
+  id      Int     @id @default(autoincrement())
+  sku     String  @unique
+  storage String?
   colorId Int
-  color   Color @relation(fields: [colorId], references: [id])
+  color   Color   @relation(fields: [colorId], references: [id])
 
   price        Int
   comparePrice Int?
@@ -206,6 +203,7 @@ model Variant {
 
   @@index([productId])
   @@index([colorId])
+  @@index([storage])
   @@index([productId, colorId])
 }
 

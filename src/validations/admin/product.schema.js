@@ -12,7 +12,6 @@ export const createProductSchema = z.object({
       .max(200, "Tên tối đa 200 ký tự"),
 
     groupId: positiveInt,
-    storage: z.string().trim().max(100, "Storage tối đa 100 ký tự").optional(),
 
     description: z.string().trim().optional(),
     thumbnail: z.string().trim().optional(),
@@ -30,11 +29,6 @@ export const updateProductSchema = z.object({
     .object({
       name: z.string().trim().min(3).max(200).optional(),
       groupId: positiveInt.optional(),
-      storage: z
-        .string()
-        .trim()
-        .max(100, "Storage tối đa 100 ký tự")
-        .optional(),
       description: z.string().trim().nullish(),
       thumbnail: z.string().trim().optional(),
       thumbnailId: z.string().trim().optional(),

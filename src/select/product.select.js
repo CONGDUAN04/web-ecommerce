@@ -39,7 +39,6 @@ export const adminProductSelect = {
   id: true,
   name: true,
   slug: true,
-  storage: true,
   description: true,
 
   thumbnail: true,
