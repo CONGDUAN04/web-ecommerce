@@ -3,7 +3,16 @@ import { parsePagination } from "../../utils/pagination.js";
 import { deleteFileService } from "../upload/upload.services.js";
 
 export const getAll = async (model, { page = 1, limit = 10 }, options = {}) => {
-  const { skip, page: p, limit: l } = parsePagination({ page, limit });
+  const {
+    skip,
+    page: p,
+    limit: l,
+  } = parsePagination({
+    page,
+    limit,
+  });
+
+  const where = options.where || {};
 
   const [items, total] = await Promise.all([
     model.findMany({
@@ -11,11 +20,15 @@ export const getAll = async (model, { page = 1, limit = 10 }, options = {}) => {
       take: l,
       ...options,
     }),
-    model.count(),
+
+    model.count({
+      where,
+    }),
   ]);
 
   return {
     items,
+
     pagination: {
       page: p,
       limit: l,

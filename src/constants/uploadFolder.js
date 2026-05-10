@@ -3,6 +3,7 @@ export const UPLOAD_TYPES = {
   category: { folder: "categories", requiresAdmin: true },
   product: { folder: "products", requiresAdmin: true },
   productGroup: { folder: "productGroups", requiresAdmin: true },
+  productColor: { folder: "productColors", requiresAdmin: true },
   user: { folder: "avatars", requiresAdmin: false },
   banner: { folder: "banners", requiresAdmin: true },
   slider: { folder: "sliders", requiresAdmin: true },

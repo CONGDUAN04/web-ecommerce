@@ -1,164 +1,270 @@
 import prisma from "../../config/client.js";
+
+import { NotFoundError, ConflictError } from "../../utils/AppError.js";
 import { parsePagination } from "../../utils/pagination.js";
+
 import {
-  NotFoundError,
-  ConflictError,
-  ValidationError,
-} from "../../utils/AppError.js";
-import { adminVariantInclude } from "../../select/variant.select.js";
-export const getVariantsServices = async ({
-  page = 1,
-  limit = 10,
-  productId,
-  color,
-}) => {
-  const { page: p, limit: l, skip } = parsePagination({ page, limit });
+  adminVariantTableSelect,
+  adminVariantDetailSelect,
+} from "../../select/variant.select.js";
 
-  const where = { isActive: true };
-  if (productId) where.productId = Number(productId);
-  if (color) where.color = { contains: color };
+import { getById, getAll } from "../../services/common/base.services.js";
 
-  const [items, total] = await Promise.all([
-    prisma.variant.findMany({
-      where,
-      skip,
-      take: l,
-      orderBy: [{ productId: "asc" }, { color: "asc" }],
-      include: adminVariantInclude,
-    }),
-    prisma.variant.count({ where }),
-  ]);
+export const getVariantsServices = (query) => {
+  const where = {};
 
-  return {
-    items,
-    pagination: { page: p, limit: l, total, totalPages: Math.ceil(total / l) },
-  };
+  if (query.productId) {
+    where.productId = Number(query.productId);
+  }
+
+  if (query.storage) {
+    where.storage = query.storage;
+  }
+
+  if (query.colorId) {
+    where.productColor = {
+      colorId: Number(query.colorId),
+    };
+  }
+
+  return getAll(prisma.variant, query, {
+    where,
+
+    orderBy: [{ productId: "asc" }, { createdAt: "desc" }],
+
+    select: adminVariantTableSelect,
+  });
 };
 
-export const getVariantByIdServices = async (id) => {
-  const variant = await prisma.variant.findUnique({
-    where: { id: Number(id) },
-    include: adminVariantInclude,
-  });
-
-  if (!variant) throw new NotFoundError("Variant");
-  return variant;
+export const getVariantByIdServices = (id) => {
+  return getById(
+    prisma.variant,
+    id,
+    {
+      select: adminVariantDetailSelect,
+    },
+    "Variant",
+  );
 };
 
 export const getVariantsByProductIdServices = async (productId) => {
   const product = await prisma.product.findUnique({
-    where: { id: Number(productId) },
-  });
-  if (!product) throw new NotFoundError("Sản phẩm");
-
-  const variants = await prisma.variant.findMany({
-    where: { productId: Number(productId), isActive: true },
-    orderBy: [{ color: "asc" }],
+    where: {
+      id: Number(productId),
+    },
   });
 
-  const colors = [...new Set(variants.map((v) => v.color))];
+  if (!product) {
+    throw new NotFoundError("Sản phẩm");
+  }
 
-  return { variants, colors };
+  return prisma.variant.findMany({
+    where: {
+      productId: Number(productId),
+      isActive: true,
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
+
+    select: adminVariantTableSelect,
+  });
 };
 
 export const createVariantServices = async (data) => {
   const product = await prisma.product.findUnique({
-    where: { id: Number(data.productId) },
+    where: {
+      id: Number(data.productId),
+    },
   });
-  if (!product) throw new NotFoundError("Sản phẩm");
-  if (!product.isActive) throw new ConflictError("Sản phẩm đã bị ẩn");
 
-  const skuExist = await prisma.variant.findUnique({
-    where: { sku: data.sku },
-  });
-  if (skuExist) throw new ConflictError("SKU đã tồn tại");
-
-  const duplicate = await prisma.variant.findFirst({
-    where: { productId: Number(data.productId), color: data.color },
-  });
-  if (duplicate) {
-    throw new ConflictError(
-      `Variant màu ${data.color} đã tồn tại trong sản phẩm này`,
-    );
+  if (!product) {
+    throw new NotFoundError("Sản phẩm");
   }
 
-  if (data.comparePrice && data.comparePrice < data.price) {
-    throw new ValidationError("Giá gốc phải lớn hơn hoặc bằng giá bán");
+  const productColor = await prisma.productColor.findUnique({
+    where: {
+      id: Number(data.productColorId),
+    },
+  });
+
+  if (!productColor) {
+    throw new NotFoundError("Màu sản phẩm");
+  }
+
+  const skuExist = await prisma.variant.findUnique({
+    where: {
+      sku: data.sku,
+    },
+  });
+
+  if (skuExist) {
+    throw new ConflictError("SKU đã tồn tại");
+  }
+
+  const normalizedStorage = data.storage !== undefined ? data.storage : null;
+
+  const duplicate = await prisma.variant.findFirst({
+    where: {
+      productId: Number(data.productId),
+
+      productColorId: Number(data.productColorId),
+
+      storage: normalizedStorage,
+    },
+  });
+
+  if (duplicate) {
+    throw new ConflictError("Variant đã tồn tại");
   }
 
   return prisma.variant.create({
     data: {
       productId: Number(data.productId),
+
+      productColorId: Number(data.productColorId),
+
       sku: data.sku,
-      color: data.color,
+
+      storage: normalizedStorage,
+
       price: data.price,
+
       comparePrice: data.comparePrice ?? null,
+
+      quantity: data.quantity ?? 0,
     },
-    include: adminVariantInclude,
   });
 };
 
 export const updateVariantServices = async (id, data) => {
   id = Number(id);
 
-  const exist = await prisma.variant.findUnique({ where: { id } });
-  if (!exist) throw new NotFoundError("Variant");
+  const variant = await prisma.variant.findUnique({
+    where: {
+      id,
+    },
+  });
 
-  const updateData = {};
-
-  if (data.sku !== undefined) {
-    const skuExist = await prisma.variant.findFirst({
-      where: { sku: data.sku, NOT: { id } },
-    });
-    if (skuExist) throw new ConflictError("SKU đã tồn tại");
-    updateData.sku = data.sku;
+  if (!variant) {
+    throw new NotFoundError("Variant");
   }
 
-  if (data.color !== undefined) {
-    const duplicate = await prisma.variant.findFirst({
-      where: { productId: exist.productId, color: data.color, NOT: { id } },
+  if (data.sku && data.sku !== variant.sku) {
+    const skuExist = await prisma.variant.findUnique({
+      where: {
+        sku: data.sku,
+      },
     });
-    if (duplicate) {
-      throw new ConflictError(
-        `Variant màu ${data.color} đã tồn tại trong sản phẩm này`,
-      );
+
+    if (skuExist) {
+      throw new ConflictError("SKU đã tồn tại");
     }
-    updateData.color = data.color;
   }
 
-  const newPrice = data.price ?? exist.price;
-  const newComparePrice = data.comparePrice ?? exist.comparePrice;
-  if (newComparePrice && newComparePrice < newPrice) {
-    throw new ValidationError("Giá gốc phải lớn hơn hoặc bằng giá bán");
+  if (data.productColorId) {
+    const productColor = await prisma.productColor.findUnique({
+      where: {
+        id: Number(data.productColorId),
+      },
+    });
+
+    if (!productColor) {
+      throw new NotFoundError("Màu sản phẩm");
+    }
   }
 
-  if (data.price !== undefined) updateData.price = data.price;
-  if (data.comparePrice !== undefined)
-    updateData.comparePrice = data.comparePrice;
-  if (data.quantity !== undefined) updateData.quantity = data.quantity;
-  if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
+  const normalizedStorage =
+    data.storage !== undefined ? data.storage : variant.storage;
 
-  if (Object.keys(updateData).length === 0) {
-    throw new ValidationError("Cần ít nhất một trường để cập nhật");
+  const duplicate = await prisma.variant.findFirst({
+    where: {
+      productId: variant.productId,
+
+      productColorId: data.productColorId ?? variant.productColorId,
+
+      storage: normalizedStorage,
+
+      NOT: {
+        id,
+      },
+    },
+  });
+
+  if (duplicate) {
+    throw new ConflictError("Variant đã tồn tại");
   }
 
   return prisma.variant.update({
-    where: { id },
-    data: updateData,
-    include: adminVariantInclude,
+    where: {
+      id,
+    },
+
+    data: {
+      sku: data.sku ?? variant.sku,
+
+      storage: normalizedStorage,
+
+      productColorId: data.productColorId ?? variant.productColorId,
+
+      price: data.price ?? variant.price,
+
+      comparePrice:
+        data.comparePrice !== undefined
+          ? data.comparePrice
+          : variant.comparePrice,
+
+      quantity: data.quantity ?? variant.quantity,
+
+      isActive: data.isActive !== undefined ? data.isActive : variant.isActive,
+    },
   });
 };
-
 export const deleteVariantServices = async (id) => {
   id = Number(id);
 
-  const exist = await prisma.variant.findUnique({ where: { id } });
-  if (!exist) throw new NotFoundError("Variant");
+  const orderItemCount = await prisma.orderItem.count({
+    where: {
+      variantId: id,
+    },
+  });
 
-  await prisma.variant.update({
-    where: { id },
-    data: { isActive: false },
+  if (orderItemCount > 0) {
+    throw new ConflictError(
+      `Không thể xoá — variant đang tồn tại trong ${orderItemCount} đơn hàng`,
+    );
+  }
+
+  await prisma.variant.delete({
+    where: {
+      id,
+    },
   });
 
   return true;
+};
+
+export const updateVariantStatusService = async (id, data) => {
+  id = Number(id);
+
+  const variant = await prisma.variant.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!variant) {
+    throw new NotFoundError("Variant");
+  }
+
+  return prisma.variant.update({
+    where: {
+      id,
+    },
+
+    data: {
+      isActive: data.isActive,
+    },
+  });
 };

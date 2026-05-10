@@ -7,6 +7,7 @@ import {
   createVariantServices,
   updateVariantServices,
   deleteVariantServices,
+  updateVariantStatusService,
 } from "../../services/admin/variant.services.js";
 
 export const getVariants = asyncHandler(async (req, res) => {
@@ -40,4 +41,13 @@ export const updateVariant = asyncHandler(async (req, res) => {
 export const deleteVariant = asyncHandler(async (req, res) => {
   await deleteVariantServices(req.validated.params.id);
   return ApiResponse.deleted(res);
+});
+
+export const updateVariantStatus = asyncHandler(async (req, res) => {
+  const data = await updateVariantStatusService(
+    req.validated.params.id,
+    req.validated.body,
+  );
+
+  return ApiResponse.updated(res, data);
 });

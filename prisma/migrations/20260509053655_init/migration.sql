@@ -139,7 +139,6 @@ CREATE TABLE `Product` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(191) NOT NULL,
     `slug` VARCHAR(191) NOT NULL,
-    `storage` VARCHAR(191) NULL,
     `description` TEXT NULL,
     `thumbnail` VARCHAR(191) NULL,
     `thumbnailId` VARCHAR(191) NULL,
@@ -157,13 +156,11 @@ CREATE TABLE `Product` (
     INDEX `Product_brandId_idx`(`brandId`),
     INDEX `Product_categoryId_idx`(`categoryId`),
     INDEX `Product_isActive_idx`(`isActive`),
-    INDEX `Product_storage_idx`(`storage`),
     INDEX `Product_viewCount_idx`(`viewCount`),
     INDEX `Product_createdAt_idx`(`createdAt`),
     INDEX `Product_isActive_categoryId_idx`(`isActive`, `categoryId`),
     INDEX `Product_isActive_brandId_idx`(`isActive`, `brandId`),
     INDEX `Product_isActive_groupId_idx`(`isActive`, `groupId`),
-    INDEX `Product_groupId_storage_idx`(`groupId`, `storage`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -171,20 +168,23 @@ CREATE TABLE `Product` (
 CREATE TABLE `Variant` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `sku` VARCHAR(191) NOT NULL,
-    `colorId` INTEGER NOT NULL,
+    `storage` VARCHAR(191) NULL,
     `price` INTEGER NOT NULL,
     `comparePrice` INTEGER NULL,
     `quantity` INTEGER NOT NULL DEFAULT 0,
     `sold` INTEGER NOT NULL DEFAULT 0,
     `isActive` BOOLEAN NOT NULL DEFAULT true,
     `productId` INTEGER NOT NULL,
+    `productColorId` INTEGER NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `Variant_sku_key`(`sku`),
     INDEX `Variant_productId_idx`(`productId`),
-    INDEX `Variant_colorId_idx`(`colorId`),
-    INDEX `Variant_productId_colorId_idx`(`productId`, `colorId`),
+    INDEX `Variant_productColorId_idx`(`productColorId`),
+    INDEX `Variant_storage_idx`(`storage`),
+    INDEX `Variant_isActive_idx`(`isActive`),
+    UNIQUE INDEX `Variant_productColorId_storage_key`(`productColorId`, `storage`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -195,6 +195,22 @@ CREATE TABLE `Color` (
     `code` VARCHAR(191) NOT NULL,
 
     UNIQUE INDEX `Color_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductColor` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `productId` INTEGER NOT NULL,
+    `colorId` INTEGER NOT NULL,
+    `image` VARCHAR(191) NULL,
+    `imageId` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `ProductColor_productId_idx`(`productId`),
+    INDEX `ProductColor_colorId_idx`(`colorId`),
+    UNIQUE INDEX `ProductColor_productId_colorId_key`(`productId`, `colorId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -290,7 +306,7 @@ CREATE TABLE `OrderItem` (
     `productName` VARCHAR(191) NOT NULL,
     `thumbnail` VARCHAR(191) NULL,
     `variantColor` VARCHAR(191) NOT NULL,
-    `variantStorage` INTEGER NULL,
+    `variantStorage` VARCHAR(191) NULL,
     `variantSku` VARCHAR(191) NOT NULL,
     `quantity` INTEGER NOT NULL,
     `price` INTEGER NOT NULL,
@@ -598,10 +614,16 @@ ALTER TABLE `Product` ADD CONSTRAINT `Product_categoryId_fkey` FOREIGN KEY (`cat
 ALTER TABLE `Product` ADD CONSTRAINT `Product_groupId_fkey` FOREIGN KEY (`groupId`) REFERENCES `ProductGroup`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Variant` ADD CONSTRAINT `Variant_colorId_fkey` FOREIGN KEY (`colorId`) REFERENCES `Color`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `Variant` ADD CONSTRAINT `Variant_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Variant` ADD CONSTRAINT `Variant_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Variant` ADD CONSTRAINT `Variant_productColorId_fkey` FOREIGN KEY (`productColorId`) REFERENCES `ProductColor`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ProductColor` ADD CONSTRAINT `ProductColor_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ProductColor` ADD CONSTRAINT `ProductColor_colorId_fkey` FOREIGN KEY (`colorId`) REFERENCES `Color`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `ProductImage` ADD CONSTRAINT `ProductImage_productId_fkey` FOREIGN KEY (`productId`) REFERENCES `Product`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

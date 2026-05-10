@@ -43,6 +43,7 @@ export const generateUploadSignature = (type, user) => {
   };
 };
 export const deleteFileService = async (publicId, user) => {
+  console.log("PUBLIC ID:", publicId);
   if (!publicId) {
     throw new ValidationError("Thiếu publicId");
   }
@@ -63,6 +64,7 @@ export const deleteFileService = async (publicId, user) => {
 
   const result = await cloudinary.uploader.destroy(publicId);
 
+  console.log("DELETE RESULT:", result);
   if (result.result !== "ok") {
     throw new ValidationError("Xoá file thất bại");
   }
