@@ -42,7 +42,7 @@ app.use("/api", authRouter);
 app.use("/api/upload", checkValidJWT, uploadRoutes);
 
 /* USER - protected */
-app.use("/api/user", checkValidJWT, clientRoutes); // đổi prefix rõ ràng hơn
+app.use("/api/client", clientRoutes);
 
 /* ADMIN */
 app.use("/api/admin", checkValidJWT, isAdmin, adminRoutes);

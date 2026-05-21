@@ -10,19 +10,44 @@ export const adminFlashSaleSelect = {
 
 export const adminFlashSaleDetailSelect = {
   ...adminFlashSaleSelect,
+
   items: {
     select: {
       id: true,
       salePrice: true,
       quantity: true,
       sold: true,
+
       variant: {
         select: {
           id: true,
           sku: true,
-          color: true,
+          storage: true,
           price: true,
-          product: { select: { id: true, name: true, thumbnail: true } },
+          comparePrice: true,
+
+          productColor: {
+            select: {
+              id: true,
+              image: true,
+
+              color: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true,
+                },
+              },
+            },
+          },
+
+          product: {
+            select: {
+              id: true,
+              name: true,
+              thumbnail: true,
+            },
+          },
         },
       },
     },

@@ -2,13 +2,14 @@ import prisma from "../../config/client.js";
 import { parsePagination, buildPagination } from "../../utils/pagination.js";
 import { attachReviewStats } from "../../utils/review.js";
 import { applySortInMemory } from "../../utils/sort.js";
-import { clientProductSelect } from "../../select/product.select.js";
+import {
+  clientProductSelect,
+  homeProductSelect,
+} from "../../select/product.select.js";
 import { NotFoundError } from "../../utils/AppError.js";
 import { getFlashSalePrice } from "../../utils/flashSale.js";
+import { transformHomeProducts } from "../../utils/transformHomeProducts.js";
 
-/* ─────────────────────────────────────────────
-   TRANSFORM PRODUCTS (🔥 CORE PIPELINE)
-───────────────────────────────────────────── */
 const transformProducts = (products, sort) => {
   const now = new Date();
 
@@ -34,27 +35,30 @@ const transformProducts = (products, sort) => {
 ───────────────────────────────────────────── */
 export const getProductsService = async (query) => {
   const { page, limit, skip } = parsePagination(query);
-  const { categoryId, brandId, groupId, storage, sort = "newest" } = query;
+
+  const { categoryId, brandId, groupId, sort = "newest" } = query;
 
   const where = {
     isActive: true,
     ...(categoryId && { categoryId: Number(categoryId) }),
     ...(brandId && { brandId: Number(brandId) }),
     ...(groupId && { groupId: Number(groupId) }),
-    ...(storage && { storage: Number(storage) }),
   };
 
-  const dbOrderBy = {
+  const orderBy = {
     newest: { createdAt: "desc" },
     oldest: { createdAt: "asc" },
     popular: { viewCount: "desc" },
   }[sort] || { createdAt: "desc" };
-
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      select: clientProductSelect,
-      orderBy: dbOrderBy,
+      select: homeProductSelect,
+
+      orderBy: {
+        id: "desc",
+      },
+
       skip,
       take: limit,
     }),
@@ -62,11 +66,11 @@ export const getProductsService = async (query) => {
   ]);
 
   return {
-    items: transformProducts(items, sort),
+    items: transformHomeProducts(items),
+
     pagination: buildPagination(total, page, limit),
   };
 };
-
 /* ─────────────────────────────────────────────
    GET PRODUCT BY SLUG
 ───────────────────────────────────────────── */
